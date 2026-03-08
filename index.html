@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Amazon Profit Calculator — Founding Member</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<style>
+  /* =============================================
+     CSS CUSTOM PROPERTIES & RESET
+  ============================================= */
+  :root {
+    --bg-deep:      #080c14;
+    --bg-base:      #0d1320;
+    --bg-card:      #111827;
+    --bg-input:     #0f1828;
+    --bg-hover:     #162035;
+    --border:       #1e2d45;
+    --border-light: #253650;
+    --accent:       #f0a500;
+    --accent-dim:   #c4860060;
+    --accent-glow:  #f0a50022;
+    --green:        #00d97e;
+    --green-dim:    #00d97e22;
+    --red:          #ff4d6a;
+    --red-dim:      #ff4d6a22;
+    --blue:         #3d8bff;
+    --blue-dim:     #3d8bff22;
+    --text-primary: #e8edf5;
+    --text-secondary:#8a9ab5;
+    --text-muted:   #4a5a73;
+    --font-display: 'Syne', sans-serif;
+    --font-mono:    'DM Mono', monospace;
+    --font-body:    'Inter', sans-serif;
+    --radius:       10px;
+    --radius-sm:    6px;
+    --transition:   150ms ease;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* =============================================
+     HEADER
+  ============================================= */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,12,20,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+  }
+
+  .header-logo .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .header-logo span { color: var(--accent); }
+
+  .founding-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #1a1200, #2a1e00);
+    border: 1px solid #f0a50040;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .founding-badge::before {
+    content: '★';
+    font-size: 10px;
+  }
+
+  /* =============================================
+     MAIN LAYOUT
+  ============================================= */
+  .main {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .page-headline {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 3vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    color: var(--text-primary);
+    margin-bottom: 28px;
+    line-height: 1.2;
+  }
+
+  .page-headline span { color: var(--accent); }
+
+  /* =============================================
+     RESULTS STRIP (top)
+  ============================================= */
+  .results-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    transition: border-color var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-accent, var(--accent));
+    opacity: 0.7;
+  }
+
+  .result-card.profit { --card-accent: var(--green); }
+  .result-card.loss { --card-accent: var(--red); }
+  .result-card.roi { --card-accent: var(--blue); }
+  .result-card.breakeven { --card-accent: var(--accent); }
+  .result-card.fbm { --card-accent: #a78bfa; }
+
+  .result-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .result-card-label .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--card-accent, var(--accent));
+  }
+
+  .result-card-value {
+    font-family: var(--font-mono);
+    font-size: clamp(20px, 2.5vw, 28px);
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: -1px;
+    transition: color var(--transition);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .result-card-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  /* colour states */
+  .val-positive { color: var(--green) !important; }
+  .val-negative { color: var(--red) !important; }
+  .val-neutral  { color: var(--accent) !important; }
+  .val-blue     { color: var(--blue) !important; }
+
+  /* =============================================
+     CONTENT GRID
+  ============================================= */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .content-grid { grid-template-columns: 1fr; }
+  }
+
+  /* =============================================
+     PANEL / CARD
+  ============================================= */
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title .icon {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+
+  .panel-body {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* =============================================
+     FORM ELEMENTS
+  ============================================= */
+  .field-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  label .hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .input-wrap {
+    position: relative;
+  }
+
+  .input-prefix {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  input[type="number"],
+  input[type="text"],
+  select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  input.has-prefix { padding-left: 24px; }
+  input.has-suffix { padding-right: 28px; }
+
+  .input-suffix {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234a5a73' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+
+  /* =============================================
+     SLIDER
+  ============================================= */
+  .slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .slider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-dim);
+    cursor: pointer;
+    transition: transform var(--transition);
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+  }
+
+  .slider-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  /* =============================================
+     TOGGLE SWITCH
+  ============================================= */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color var(--transition);
+  }
+
+  .toggle-row:hover { border-color: var(--border-light); }
+
+  .toggle-row-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toggle {
+    position: relative;
+    width: 36px; height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 10px;
+    transition: background var(--transition);
+    cursor: pointer;
+  }
+
+  .toggle-slider::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 3px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: transform var(--transition), background var(--transition);
+  }
+
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider::after {
+    transform: translateX(16px);
+    background: #fff;
+  }
+
+  /* =============================================
+     COST BREAKDOWN TABLE
+  ============================================= */
+  .breakdown {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .breakdown-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    transition: background var(--transition);
+  }
+
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row:hover { background: rgba(255,255,255,0.02); }
+
+  .breakdown-row-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .breakdown-row-label .tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--border);
+    color: var(--text-muted);
+  }
+
+  .breakdown-row-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .breakdown-row-value.neg { color: var(--red); }
+  .breakdown-row-value.pos { color: var(--green); }
+  .breakdown-row-value.acc { color: var(--accent); }
+
+  .breakdown-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(0,217,126,0.04);
+    border-top: 1px solid var(--border);
+  }
+
+  .breakdown-total-label {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .breakdown-total-value {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+  }
+
+  /* =============================================
+     COMPARISON TABLE
+  ============================================= */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .compare-col {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .compare-col::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--col-accent, var(--border));
+  }
+
+  .compare-col.fba { --col-accent: var(--accent); }
+  .compare-col.fbm { --col-accent: #a78bfa; }
+
+  .compare-col-title {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+
+  .compare-col-profit {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .compare-col-roi {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  /* =============================================
+     WINNER BADGE
+  ============================================= */
+  .winner-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid var(--green);
+    margin-top: 8px;
+  }
+
+  /* =============================================
+     SECTION DIVIDER
+  ============================================= */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 4px 0 2px;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* =============================================
+     PILL TABS
+  ============================================= */
+  .tabs {
+    display: flex;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+    color: var(--text-muted);
+    border: none;
+    background: transparent;
+    font-family: var(--font-body);
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* =============================================
+     SIZE TIER INDICATOR
+  ============================================= */
+  .tier-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .tier-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+  }
+
+  /* =============================================
+     INFO TOOLTIP
+  ============================================= */
+  .info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--text-muted);
+    font-size: 9px;
+    cursor: help;
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    position: relative;
+  }
+
+  .info-icon:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 400;
+    white-space: nowrap;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    z-index: 200;
+    pointer-events: none;
+    max-width: 220px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* =============================================
+     FOOTER
+  ============================================= */
+  .footer {
+    text-align: center;
+    padding: 32px 24px;
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  .footer strong { color: var(--accent); }
+
+  /* =============================================
+     PULSE ANIMATION ON UPDATE
+  ============================================= */
+  @keyframes pulse-update {
+    0%   { opacity: 1; }
+    30%  { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  .updating { animation: pulse-update 0.25s ease; }
+
+  /* =============================================
+     SCROLL REVEAL
+  ============================================= */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel, .breakdown, .results-strip {
+    animation: fadeInUp 0.5s ease both;
+  }
+
+  .results-strip { animation-delay: 0.05s; }
+  .panel:nth-child(1) { animation-delay: 0.1s; }
+  .panel:nth-child(2) { animation-delay: 0.15s; }
+  .breakdown { animation-delay: 0.2s; }
+
+  /* =============================================
+     SCROLLBAR
+  ============================================= */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-deep); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+  /* =============================================
+     LICENSE GATE
+  ============================================= */
+  #licenseGate {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--bg-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    /* grid overlay matches body */
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  #licenseGate.hidden {
+    animation: gateFadeOut 0.4s ease forwards;
+    pointer-events: none;
+  }
+
+  @keyframes gateFadeOut {
+    to { opacity: 0; transform: scale(1.03); }
+  }
+
+  .gate-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 40px 44px 36px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(240,165,0,0.06);
+    animation: gateSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* top amber glow bar */
+  .gate-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  /* subtle corner glow */
+  .gate-card::after {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  @keyframes gateSlideIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .gate-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.3px;
+    margin-bottom: 28px;
+  }
+
+  .gate-logo .logo-icon {
+    width: 34px; height: 34px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .gate-logo span { color: var(--accent); }
+
+  .gate-heading {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .gate-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+
+  .gate-sub strong { color: var(--accent); font-weight: 600; }
+
+  .gate-input-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+
+  #licenseInput {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    text-transform: uppercase;
+  }
+
+  #licenseInput::placeholder {
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: none;
+    font-size: 13px;
+  }
+
+  #licenseInput:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  #licenseInput.shake {
+    animation: shake 0.4s ease;
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px var(--red-dim);
+  }
+
+  #licenseInput.success {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-dim);
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-8px); }
+    40%       { transform: translateX(8px); }
+    60%       { transform: translateX(-5px); }
+    80%       { transform: translateX(5px); }
+  }
+
+  #verifyBtn {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  #verifyBtn:hover {
+    background: #ffb820;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(240,165,0,0.35);
+  }
+
+  #verifyBtn:active { transform: translateY(0); }
+
+  #verifyBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  #gateMsg {
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    min-height: 18px;
+    transition: opacity var(--transition);
+  }
+
+  #gateMsg.error   { color: var(--red); }
+  #gateMsg.success { color: var(--green); }
+
+  .gate-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0 18px;
+  }
+
+  .gate-footer {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.7;
+  }
+
+  .gate-footer strong { color: var(--accent); }
+
+  /* Attempts counter */
+  .gate-attempts {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin-top: 14px;
+  }
+
+  .attempt-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border-light);
+    transition: background var(--transition);
+  }
+
+  .attempt-dot.used { background: var(--red); }
+
+  /* Lock screen after too many attempts */
+  .gate-locked-msg {
+    text-align: center;
+    padding: 10px 0;
+  }
+
+  .gate-locked-msg .lock-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+    animation: lockPulse 1.5s ease infinite;
+  }
+
+  @keyframes lockPulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.08); }
+  }
+</style>
+</head>
+<body>
+
+<!-- =============================================
+     LICENSE GATE OVERLAY
+============================================= -->
+<div id="licenseGate">
+  <div class="gate-card">
+
+    <div class="gate-logo">
+      <div class="logo-icon">📦</div>
+      <div><span>Profit</span>Lens</div>
+    </div>
+
+    <h2 class="gate-heading">Founding Member Access</h2>
+    <p class="gate-sub">
+      Enter your <strong>license key</strong> to unlock the calculator.
+      Keys are issued to Founding Members only.
+    </p>
+
+    <div id="gateUnlockForm">
+      <div class="gate-input-wrap">
+        <input
+          type="text"
+          id="licenseInput"
+          placeholder="e.g.  AMZ-70-X92"
+          maxlength="20"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <button id="verifyBtn" onclick="verifyKey()">
+        <span id="verifyBtnText">🔓 Verify Key</span>
+      </button>
+
+      <div id="gateMsg"></div>
+
+      <div class="gate-attempts" id="attemptsDisplay">
+        <div class="attempt-dot" id="dot1"></div>
+        <div class="attempt-dot" id="dot2"></div>
+        <div class="attempt-dot" id="dot3"></div>
+        <div class="attempt-dot" id="dot4"></div>
+        <div class="attempt-dot" id="dot5"></div>
+      </div>
+    </div>
+
+    <div class="gate-divider"></div>
+
+    <div class="gate-footer">
+      <strong>ProfitLens</strong> — Founding Member Edition<br />
+      Keys are single-use per device. Contact support if locked out.
+    </div>
+
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">📦</div>
+    <span>Profit</span>Lens
+  </div>
+  <div class="founding-badge">Founding Member</div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+  <p class="page-title">Amazon Seller Tools</p>
+  <h1 class="page-headline">FBA Profit <span>Calculator</span></h1>
+
+  <!-- RESULTS STRIP -->
+  <div class="results-strip" id="resultsStrip">
+    <div class="result-card profit">
+      <div class="result-card-label"><span class="dot"></span>FBA Net Profit</div>
+      <div class="result-card-value val-positive" id="r-fba-profit">$0.00</div>
+      <div class="result-card-sub" id="r-fba-margin">Margin: 0.0%</div>
+    </div>
+    <div class="result-card roi">
+      <div class="result-card-label"><span class="dot"></span>FBA ROI</div>
+      <div class="result-card-value val-blue" id="r-fba-roi">0.0%</div>
+      <div class="result-card-sub" id="r-fba-roi-sub">On COGS</div>
+    </div>
+    <div class="result-card breakeven">
+      <div class="result-card-label"><span class="dot"></span>Break-Even Price</div>
+      <div class="result-card-value val-neutral" id="r-breakeven">$0.00</div>
+      <div class="result-card-sub" id="r-breakeven-sub">Min sell price</div>
+    </div>
+    <div class="result-card fbm">
+      <div class="result-card-label"><span class="dot"></span>FBM Net Profit</div>
+      <div class="result-card-value" id="r-fbm-profit" style="color:#a78bfa">$0.00</div>
+      <div class="result-card-sub" id="r-fbm-margin">Margin: 0.0%</div>
+    </div>
+  </div>
+
+  <!-- CONTENT GRID -->
+  <div class="content-grid">
+
+    <!-- LEFT PANEL: Product + Fees -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Product Info -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">🏷️</span>
+            Product Details
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="field-group">
+            <div class="field">
+              <label>Selling Price <i class="info-icon" data-tip="Your listed price on Amazon (before fees)">?</i></label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="sellingPrice" class="has-prefix" value="29.99" step="0.01" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>COGS / Unit Cost <i class="info-icon" data-tip="Your cost of goods per unit (sourcing, manufacturing)">?</i></label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="cogs" class="has-prefix" value="8.00" step="0.01" min="0" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Category</label>
+            <select id="category">
+              <option value="0.15">General (15%)</option>
+              <option value="0.08">Books (8%)</option>
+              <option value="0.15">Electronics (15%)</option>
+              <option value="0.15">Clothing &amp; Accessories (15%)</option>
+              <option value="0.17">Jewelry (17%)</option>
+              <option value="0.15">Home &amp; Garden (15%)</option>
+              <option value="0.15">Sports &amp; Outdoors (15%)</option>
+              <option value="0.06">Personal Computers (6%)</option>
+              <option value="0.45">Amazon Device Accessories (45%)</option>
+              <option value="0.12">Baby Products (12%)</option>
+              <option value="0.15">Beauty (15%)</option>
+              <option value="0.15">Toys &amp; Games (15%)</option>
+              <option value="custom">Custom Rate…</option>
+            </select>
+          </div>
+
+          <div class="field" id="customRefField" style="display:none">
+            <label>Custom Referral % <i class="info-icon" data-tip="Enter your exact category referral fee percentage">?</i></label>
+            <div class="input-wrap">
+              <input type="number" id="customRef" class="has-suffix" value="15" step="0.1" min="0" max="100" />
+              <span class="input-suffix">%</span>
+            </div>
+          </div>
+
+          <div class="section-divider">Dimensions &amp; Weight</div>
+
+          <div class="field-group">
+            <div class="field">
+              <label>Weight (lbs)</label>
+              <div class="input-wrap">
+                <input type="number" id="weight" value="0.8" step="0.01" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Longest Side (in)</label>
+              <div class="input-wrap">
+                <input type="number" id="dimL" value="10" step="0.1" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Median Side (in)</label>
+              <div class="input-wrap">
+                <input type="number" id="dimM" value="7" step="0.1" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Shortest Side (in)</label>
+              <div class="input-wrap">
+                <input type="number" id="dimS" value="1" step="0.1" min="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Size tier display -->
+          <div class="tier-display">
+            <span style="color:var(--text-muted);font-size:11px;">Size Tier:</span>
+            <span class="tier-badge" id="sizeTierBadge">Small Standard</span>
+            <span style="color:var(--text-muted);font-size:11px;" id="sizeTierDesc">≤ 15.0 × 12.0 × 0.75 in, ≤ 1 lb</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FBM Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">🚚</span>
+            FBM (Your Own Fulfillment)
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="field-group">
+            <div class="field">
+              <label>Your Shipping Cost <i class="info-icon" data-tip="Cost you pay to ship 1 unit to buyer">?</i></label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="fbmShipping" class="has-prefix" value="4.50" step="0.01" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Packaging Cost</label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="fbmPackaging" class="has-prefix" value="0.50" step="0.01" min="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /LEFT -->
+
+    <!-- RIGHT PANEL: Hidden Costs + Taxes -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Storage & FBA extras -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">💰</span>
+            FBA Fees &amp; Storage
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="field-group">
+            <div class="field">
+              <label>Monthly Units Sold <i class="info-icon" data-tip="Used to prorate monthly storage fee per unit">?</i></label>
+              <input type="number" id="monthlyUnits" value="50" step="1" min="1" />
+            </div>
+            <div class="field">
+              <label>Avg. Storage (months)</label>
+              <input type="number" id="storageDuration" value="2" step="0.5" min="0" max="12" />
+            </div>
+          </div>
+
+          <!-- Peak storage toggle -->
+          <label class="toggle-row" for="peakStorage">
+            <span class="toggle-row-label">
+              🍂 Peak Season Storage (Oct–Dec)
+              <i class="info-icon" data-tip="Oct–Dec rates are roughly 2.4× standard rates">?</i>
+            </span>
+            <label class="toggle">
+              <input type="checkbox" id="peakStorage" />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+          <div class="field">
+            <label>Inbound Shipping / Unit <i class="info-icon" data-tip="Your cost to ship inventory to Amazon FBA warehouse">?</i></label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="inboundShipping" class="has-prefix" value="0.50" step="0.01" min="0" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Prep &amp; Labelling / Unit</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="prepCost" class="has-prefix" value="0.25" step="0.01" min="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden Costs -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">🕵️</span>
+            Hidden Cost Suite
+          </div>
+        </div>
+        <div class="panel-body">
+
+          <!-- PPC -->
+          <div class="slider-wrap">
+            <div class="slider-header">
+              <label>PPC Ad Spend / Unit <i class="info-icon" data-tip="Total ad spend ÷ total units sold. Your effective CPC cost per unit.">?</i></label>
+              <span class="slider-value" id="ppcVal">$1.50</span>
+            </div>
+            <input type="range" id="ppcSlider" min="0" max="10" step="0.10" value="1.50" />
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);">
+              <span>$0</span><span>$10</span>
+            </div>
+          </div>
+
+          <!-- Returns -->
+          <div class="slider-wrap">
+            <div class="slider-header">
+              <label>Return Rate <i class="info-icon" data-tip="% of units returned. Deducts FBA return fee ($3–$5) + lost COGS from profit.">?</i></label>
+              <span class="slider-value" id="returnVal">5%</span>
+            </div>
+            <input type="range" id="returnSlider" min="0" max="50" step="1" value="5" />
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);">
+              <span>0%</span><span>50%</span>
+            </div>
+          </div>
+
+          <div class="section-divider">Tax Settings</div>
+
+          <!-- VAT Toggle -->
+          <label class="toggle-row" for="vatToggle">
+            <span class="toggle-row-label">
+              🇬🇧 UK VAT (20%)
+              <i class="info-icon" data-tip="If toggled, reduces effective revenue by 20% (VAT-inclusive pricing)">?</i>
+            </span>
+            <label class="toggle">
+              <input type="checkbox" id="vatToggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+          <!-- US Tax Toggle -->
+          <label class="toggle-row" for="salesTaxToggle">
+            <span class="toggle-row-label">
+              🇺🇸 US Sales Tax (est. 8%)
+              <i class="info-icon" data-tip="Amazon remits Marketplace Facilitator Tax; this estimates your state nexus impact on margins.">?</i>
+            </span>
+            <label class="toggle">
+              <input type="checkbox" id="salesTaxToggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+          <!-- Income Tax -->
+          <div class="field">
+            <label>Income Tax Rate <span class="hint">(optional, % on profit)</span></label>
+            <div class="input-wrap">
+              <input type="number" id="incomeTax" class="has-suffix" value="0" step="1" min="0" max="60" />
+              <span class="input-suffix">%</span>
+            </div>
+          </div>
+
+          <!-- Misc -->
+          <div class="field">
+            <label>Other Costs / Unit <span class="hint">(photography, VA, etc)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="miscCost" class="has-prefix" value="0" step="0.01" min="0" />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /RIGHT -->
+
+  </div><!-- /CONTENT GRID -->
+
+  <!-- COST BREAKDOWN -->
+  <div style="margin-top:16px;">
+    <div class="breakdown">
+      <div class="breakdown-header">
+        📊 &nbsp;Full Cost Breakdown — FBA vs FBM
+      </div>
+      <!-- Breakdown rows (dynamically filled) -->
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Revenue</span>Selling Price (net of tax)</span>
+        <span class="breakdown-row-value pos" id="b-revenue">$29.99</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">COGS</span>Cost of Goods</span>
+        <span class="breakdown-row-value neg" id="b-cogs">–$8.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Fee</span>Amazon Referral Fee</span>
+        <span class="breakdown-row-value neg" id="b-referral">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">FBA</span>FBA Fulfillment Fee</span>
+        <span class="breakdown-row-value neg" id="b-fba">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Storage</span>Monthly Storage (per unit)</span>
+        <span class="breakdown-row-value neg" id="b-storage">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Inbound</span>Inbound Shipping</span>
+        <span class="breakdown-row-value neg" id="b-inbound">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Prep</span>Prep &amp; Labelling</span>
+        <span class="breakdown-row-value neg" id="b-prep">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">PPC</span>Ad Spend / Unit</span>
+        <span class="breakdown-row-value neg" id="b-ppc">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Returns</span>Returns Impact</span>
+        <span class="breakdown-row-value neg" id="b-returns">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Tax</span>Tax Impact</span>
+        <span class="breakdown-row-value neg" id="b-tax">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Misc</span>Other Costs</span>
+        <span class="breakdown-row-value neg" id="b-misc">–$0.00</span>
+      </div>
+      <div class="breakdown-row" style="background:rgba(240,165,0,0.03)">
+        <span class="breakdown-row-label" style="font-weight:600;color:var(--text-primary)">FBM Fulfillment Cost (shipping + packaging)</span>
+        <span class="breakdown-row-value neg" id="b-fbm-shipping">–$0.00</span>
+      </div>
+      <!-- Totals -->
+      <div class="breakdown-total" style="border-top:2px solid var(--border);">
+        <div>
+          <div class="breakdown-total-label">FBA Net Profit / Unit</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="b-fba-margin-text">Margin · ROI</div>
+        </div>
+        <div class="breakdown-total-value" id="b-fba-total" style="color:var(--green)">$0.00</div>
+      </div>
+      <div class="breakdown-total">
+        <div>
+          <div class="breakdown-total-label" style="color:#a78bfa">FBM Net Profit / Unit</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="b-fbm-margin-text">Margin · ROI</div>
+        </div>
+        <div class="breakdown-total-value" id="b-fbm-total" style="color:#a78bfa">$0.00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARISON WIDGET -->
+  <div style="margin-top:16px;">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="icon">⚖️</span>
+          FBA vs FBM Comparison
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="compare-grid">
+          <div class="compare-col fba">
+            <div class="compare-col-title">☁️ FBA</div>
+            <div class="compare-col-profit" id="c-fba-profit">$0.00</div>
+            <div class="compare-col-roi" id="c-fba-roi">ROI: 0.0% · Margin: 0.0%</div>
+            <div id="c-fba-winner"></div>
+          </div>
+          <div class="compare-col fbm">
+            <div class="compare-col-title">📦 FBM</div>
+            <div class="compare-col-profit" id="c-fbm-profit">$0.00</div>
+            <div class="compare-col-roi" id="c-fbm-roi">ROI: 0.0% · Margin: 0.0%</div>
+            <div id="c-fbm-winner"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary);line-height:1.6;" id="c-recommendation">
+          Loading recommendation…
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <strong>ProfitLens</strong> — Founding Member Edition &nbsp;·&nbsp;
+  All calculations are estimates. Amazon fees subject to change. &nbsp;·&nbsp;
+  Built for serious sellers 🚀
+</footer>
+
+<!-- =============================================
+     JAVASCRIPT — Core Calculator Logic
+     (Designed to be portable to popup.js)
+============================================= -->
+<script>
+/* ==============================================
+   PROFIT CALCULATOR ENGINE
+   -----------------------------------------------
+   All math is in pure functions so this block
+   can be copy-pasted into a Chrome Extension's
+   popup.js verbatim.
+============================================= */
+
+// ─── FBA Fee Tables (2024 rates) ─────────────────
+const FBA_TIERS = [
+  {
+    name:    'Small Standard',
+    desc:    '≤ 15×12×0.75 in, ≤ 16 oz',
+    maxL: 15, maxM: 12, maxS: 0.75, maxWoz: 16,
+    fees: [
+      { maxWoz: 4,  fee: 3.06 },
+      { maxWoz: 8,  fee: 3.15 },
+      { maxWoz: 12, fee: 3.24 },
+      { maxWoz: 16, fee: 3.33 },
+    ],
+    storage: 0.78,     // $/cubic ft/month (standard)
+    storagePeak: 2.40  // Oct–Dec
+  },
+  {
+    name:    'Large Standard',
+    desc:    '≤ 18×14×8 in, ≤ 20 lbs',
+    maxL: 18, maxM: 14, maxS: 8, maxWlb: 20,
+    fees: [
+      { maxWlb: 1,  fee: 3.77 },
+      { maxWlb: 2,  fee: 4.08 },
+      { maxWlb: 3,  fee: 4.27 },
+      { maxWlb: 4,  fee: 4.45 },
+      { maxWlb: 5,  fee: 5.17 },
+      { maxWlb: 10, fee: 6.08 },
+      { maxWlb: 20, fee: 7.17 },
+    ],
+    storage: 0.78,
+    storagePeak: 2.40
+  },
+  {
+    name:    'Small Oversize',
+    desc:    '≤ 60×15×15 in, ≤ 70 lbs',
+    maxL: 60, maxM: 15, maxS: 15, maxWlb: 70,
+    fees: [
+      { maxWlb: 1,   fee: 9.61  },
+      { maxWlb: 2,   fee: 10.29 },
+      { maxWlb: 5,   fee: 11.37 },
+      { maxWlb: 10,  fee: 12.38 },
+      { maxWlb: 20,  fee: 13.40 },
+      { maxWlb: 40,  fee: 16.76 },
+      { maxWlb: 70,  fee: 18.77 },
+    ],
+    storage: 0.56,
+    storagePeak: 1.40
+  },
+  {
+    name:    'Medium Oversize',
+    desc:    '≤ 108 in longest, ≤ 150 lbs',
+    maxL: 108, maxM: 999, maxS: 999, maxWlb: 150,
+    fees: [
+      { maxWlb: 50,  fee: 20.43 },
+      { maxWlb: 100, fee: 25.00 },
+      { maxWlb: 150, fee: 31.52 },
+    ],
+    storage: 0.56,
+    storagePeak: 1.40
+  },
+  {
+    name:    'Large Oversize',
+    desc:    '> 108 in longest or > 150 lbs',
+    maxL: Infinity, maxM: Infinity, maxS: Infinity, maxWlb: Infinity,
+    fees: [
+      { maxWlb: Infinity, fee: 76.57 }
+    ],
+    storage: 0.56,
+    storagePeak: 1.40
+  }
+];
+
+const RETURN_FEE = 4.00; // Average FBA return processing fee per unit
+
+/* ---------------------------------------------------
+   getSizeTier(weightLbs, l, m, s)
+   Returns the matched tier object from FBA_TIERS
+--------------------------------------------------- */
+function getSizeTier(weightLbs, l, m, s) {
+  const wOz = weightLbs * 16;
+  // Sort dims descending to match longest/median/shortest
+  const [dL, dM, dS] = [l, m, s].sort((a, b) => b - a);
+
+  if (dL <= 15 && dM <= 12 && dS <= 0.75 && wOz <= 16)
+    return FBA_TIERS[0]; // Small Standard
+
+  if (dL <= 18 && dM <= 14 && dS <= 8 && weightLbs <= 20)
+    return FBA_TIERS[1]; // Large Standard
+
+  if (dL <= 60 && dM <= 15 && dS <= 15 && weightLbs <= 70)
+    return FBA_TIERS[2]; // Small Oversize
+
+  if (dL <= 108 && weightLbs <= 150)
+    return FBA_TIERS[3]; // Medium Oversize
+
+  return FBA_TIERS[4]; // Large Oversize
+}
+
+/* ---------------------------------------------------
+   getFBAFulfillmentFee(tier, weightLbs)
+   Returns fulfillment fee in USD
+--------------------------------------------------- */
+function getFBAFulfillmentFee(tier, weightLbs) {
+  const wOz  = weightLbs * 16;
+  const tiers = tier.fees;
+
+  for (const t of tiers) {
+    const check = t.maxWoz !== undefined ? wOz <= t.maxWoz
+                                         : weightLbs <= t.maxWlb;
+    if (check) return t.fee;
+  }
+  // Fallback: last tier
+  return tiers[tiers.length - 1].fee;
+}
+
+/* ---------------------------------------------------
+   getStorageFeePerUnit(tier, l, m, s, monthlyUnits, storageDuration, isPeak)
+   Returns prorated storage fee per unit
+--------------------------------------------------- */
+function getStorageFeePerUnit(tier, l, m, s, monthlyUnits, storageDuration, isPeak) {
+  const [dL, dM, dS] = [l, m, s].sort((a, b) => b - a);
+  const cubicFt = (dL * dM * dS) / 1728; // convert cubic inches → cubic feet
+  const ratePerCuFt = isPeak ? tier.storagePeak : tier.storage;
+  const monthlyCostPerUnit = cubicFt * ratePerCuFt;
+  return monthlyCostPerUnit * storageDuration;
+}
+
+/* ---------------------------------------------------
+   getReferralFee(price, rate)
+   Returns referral fee in USD
+--------------------------------------------------- */
+function getReferralFee(price, rate) {
+  return price * rate;
+}
+
+/* ---------------------------------------------------
+   getTaxImpact(price, vatEnabled, salesTaxEnabled, incomeTaxRate, profit)
+   Returns { adjustedRevenue, incomeTaxDeduction }
+--------------------------------------------------- */
+function getTaxImpact(price, vatEnabled, salesTaxEnabled, incomeTaxRate, profit) {
+  let adjustedRevenue = price;
+  // UK VAT: price is VAT-inclusive, extract net
+  if (vatEnabled) adjustedRevenue = price / 1.20;
+  // US Sales Tax: marginal impact on margin (Amazon remits, but affects perception of margin)
+  if (salesTaxEnabled) adjustedRevenue = price / 1.08;
+
+  const vatDeduction = price - adjustedRevenue;
+  const incomeTaxDeduction = profit > 0 ? profit * (incomeTaxRate / 100) : 0;
+
+  return { adjustedRevenue, vatDeduction, incomeTaxDeduction };
+}
+
+/* ---------------------------------------------------
+   getReturnsImpact(returnRate, cogs, price, referralFee)
+   Returns per-unit cost of returns
+--------------------------------------------------- */
+function getReturnsImpact(returnRate, cogs, price, referralFee) {
+  if (returnRate === 0) return 0;
+  const rate = returnRate / 100;
+  // On a return: lose COGS of returned item + return processing fee
+  // Amazon doesn't refund referral fee, but does refund the customer
+  // Per-unit impact = rate × (COGS + RETURN_FEE)
+  return rate * (cogs + RETURN_FEE);
+}
+
+/* ---------------------------------------------------
+   calculateFBA(inputs) → result object
+   MAIN FBA CALCULATION
+--------------------------------------------------- */
+function calculateFBA(inputs) {
+  const {
+    sellingPrice, cogs, referralRate,
+    weightLbs, dimL, dimM, dimS,
+    monthlyUnits, storageDuration, isPeak,
+    inboundShipping, prepCost,
+    ppcPerUnit, returnRate,
+    vatEnabled, salesTaxEnabled, incomeTaxRate,
+    miscCost
+  } = inputs;
+
+  const tier = getSizeTier(weightLbs, dimL, dimM, dimS);
+
+  // Tax-adjusted revenue
+  const { adjustedRevenue, vatDeduction } = getTaxImpact(
+    sellingPrice, vatEnabled, salesTaxEnabled, incomeTaxRate, 0 /* placeholder */
+  );
+
+  const referralFee   = getReferralFee(adjustedRevenue, referralRate);
+  const fbaFee        = getFBAFulfillmentFee(tier, weightLbs);
+  const storageFee    = getStorageFeePerUnit(tier, dimL, dimM, dimS, monthlyUnits, storageDuration, isPeak);
+  const returnsImpact = getReturnsImpact(returnRate, cogs, sellingPrice, referralFee);
+
+  const totalCosts =
+    cogs + referralFee + fbaFee + storageFee +
+    inboundShipping + prepCost + ppcPerUnit +
+    returnsImpact + vatDeduction + miscCost;
+
+  const preTaxProfit = adjustedRevenue - totalCosts;
+
+  // Income tax on profit
+  const incomeTaxDeduction = preTaxProfit > 0 ? preTaxProfit * (incomeTaxRate / 100) : 0;
+  const netProfit  = preTaxProfit - incomeTaxDeduction;
+  const margin     = sellingPrice > 0 ? (netProfit / sellingPrice) * 100 : 0;
+  const roi        = cogs > 0 ? (netProfit / cogs) * 100 : 0;
+
+  // Break-even: price where profit = 0
+  // Revenue × (1 - referralRate) - fbaFee - storage - inbound - prep - ppc - returns(cogs+returnFee)*rate - misc - cogs = 0
+  // Solve for Revenue: Revenue = (cogs + fbaFee + storage + inbound + prep + ppc + misc + returns_fixed) / (1 - referralRate - returnRate/100 * returnFee/price)
+  // Approximate (iterative would be more accurate; linear approximation here)
+  const fixedCosts = cogs + fbaFee + storageFee + inboundShipping + prepCost + ppcPerUnit + miscCost + (returnRate/100 * RETURN_FEE);
+  const cogsReturnImpact = returnRate / 100;
+  const effectiveMarginRate = (1 - referralRate - cogsReturnImpact);
+  const breakEven = effectiveMarginRate > 0 ? fixedCosts / effectiveMarginRate : 0;
+
+  return {
+    tier, referralFee, fbaFee, storageFee,
+    returnsImpact, vatDeduction, incomeTaxDeduction,
+    adjustedRevenue, netProfit, margin, roi, breakEven,
+    totalCosts, preTaxProfit
+  };
+}
+
+/* ---------------------------------------------------
+   calculateFBM(inputs, fbaResult) → result object
+   FBM CALCULATION (reuses common costs, swaps fulfillment)
+--------------------------------------------------- */
+function calculateFBM(inputs, fbaResult) {
+  const {
+    sellingPrice, cogs, referralRate,
+    fbmShipping, fbmPackaging,
+    ppcPerUnit, returnRate,
+    vatEnabled, salesTaxEnabled, incomeTaxRate,
+    miscCost
+  } = inputs;
+
+  const { adjustedRevenue, vatDeduction } = getTaxImpact(
+    sellingPrice, vatEnabled, salesTaxEnabled, incomeTaxRate, 0
+  );
+
+  const referralFee   = getReferralFee(adjustedRevenue, referralRate);
+  const fulfillment   = fbmShipping + fbmPackaging;
+  const returnsImpact = getReturnsImpact(returnRate, cogs, sellingPrice, referralFee);
+
+  const totalCosts =
+    cogs + referralFee + fulfillment + ppcPerUnit +
+    returnsImpact + vatDeduction + miscCost;
+
+  const preTaxProfit      = adjustedRevenue - totalCosts;
+  const incomeTaxDeduction = preTaxProfit > 0 ? preTaxProfit * (incomeTaxRate / 100) : 0;
+  const netProfit          = preTaxProfit - incomeTaxDeduction;
+  const margin             = sellingPrice > 0 ? (netProfit / sellingPrice) * 100 : 0;
+  const roi                = cogs > 0 ? (netProfit / cogs) * 100 : 0;
+
+  return { netProfit, margin, roi, fulfillment, referralFee, returnsImpact, incomeTaxDeduction, vatDeduction };
+}
+
+/* ==============================================
+   UI HELPERS
+============================================= */
+function fmt$(n)   { return (n >= 0 ? '' : '–') + '$' + Math.abs(n).toFixed(2); }
+function fmtNeg(n) { return '–$' + n.toFixed(2); }
+function fmtPct(n) { return n.toFixed(1) + '%'; }
+
+function setVal(id, val, forceClass) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val;
+  el.classList.add('updating');
+  setTimeout(() => el.classList.remove('updating'), 300);
+  if (forceClass) {
+    el.className = el.className.replace(/val-\w+/g, '');
+    el.classList.add(forceClass);
+  }
+}
+
+function colourProfit(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = el.className.replace(/val-\w+/g, '');
+  el.classList.add(val > 0 ? 'val-positive' : val < 0 ? 'val-negative' : 'val-neutral');
+}
+
+function getInputs() {
+  const catSelect = document.getElementById('category');
+  let referralRate = parseFloat(catSelect.value);
+  if (catSelect.value === 'custom') {
+    referralRate = parseFloat(document.getElementById('customRef').value) / 100;
+  }
+
+  return {
+    sellingPrice:     parseFloat(document.getElementById('sellingPrice').value)    || 0,
+    cogs:             parseFloat(document.getElementById('cogs').value)             || 0,
+    referralRate,
+    weightLbs:        parseFloat(document.getElementById('weight').value)           || 0.1,
+    dimL:             parseFloat(document.getElementById('dimL').value)             || 1,
+    dimM:             parseFloat(document.getElementById('dimM').value)             || 1,
+    dimS:             parseFloat(document.getElementById('dimS').value)             || 1,
+    monthlyUnits:     parseInt(document.getElementById('monthlyUnits').value)       || 1,
+    storageDuration:  parseFloat(document.getElementById('storageDuration').value)  || 1,
+    isPeak:           document.getElementById('peakStorage').checked,
+    inboundShipping:  parseFloat(document.getElementById('inboundShipping').value)  || 0,
+    prepCost:         parseFloat(document.getElementById('prepCost').value)         || 0,
+    ppcPerUnit:       parseFloat(document.getElementById('ppcSlider').value)        || 0,
+    returnRate:       parseFloat(document.getElementById('returnSlider').value)     || 0,
+    vatEnabled:       document.getElementById('vatToggle').checked,
+    salesTaxEnabled:  document.getElementById('salesTaxToggle').checked,
+    incomeTaxRate:    parseFloat(document.getElementById('incomeTax').value)        || 0,
+    miscCost:         parseFloat(document.getElementById('miscCost').value)         || 0,
+    fbmShipping:      parseFloat(document.getElementById('fbmShipping').value)      || 0,
+    fbmPackaging:     parseFloat(document.getElementById('fbmPackaging').value)     || 0,
+  };
+}
+
+/* ==============================================
+   MAIN RENDER — called on every input change
+============================================= */
+function render() {
+  const inputs  = getInputs();
+  const fba     = calculateFBA(inputs);
+  const fbm     = calculateFBM(inputs, fba);
+  const sp      = inputs.sellingPrice;
+
+  // ── Results Strip ──────────────────────────────
+  setVal('r-fba-profit', fmt$(fba.netProfit));
+  colourProfit('r-fba-profit', fba.netProfit);
+  setVal('r-fba-margin', 'Margin: ' + fmtPct(fba.margin));
+
+  setVal('r-fba-roi', fmtPct(fba.roi));
+  setVal('r-fba-roi-sub', fba.roi >= 0 ? 'On COGS' : 'Losing money');
+
+  setVal('r-breakeven', fmt$(fba.breakEven));
+  setVal('r-breakeven-sub', sp > fba.breakEven ? '✓ Above breakeven' : '✗ Below breakeven');
+
+  setVal('r-fbm-profit', fmt$(fbm.netProfit));
+  colourProfit('r-fbm-profit', fbm.netProfit);
+  setVal('r-fbm-margin', 'Margin: ' + fmtPct(fbm.margin));
+
+  // ── Size Tier ──────────────────────────────────
+  document.getElementById('sizeTierBadge').textContent = fba.tier.name;
+  document.getElementById('sizeTierDesc').textContent  = fba.tier.desc;
+
+  // ── Breakdown ─────────────────────────────────
+  setVal('b-revenue',  '$' + fba.adjustedRevenue.toFixed(2));
+  setVal('b-cogs',     fmtNeg(inputs.cogs));
+  setVal('b-referral', fmtNeg(fba.referralFee));
+  setVal('b-fba',      fmtNeg(fba.fbaFee));
+  setVal('b-storage',  fmtNeg(fba.storageFee));
+  setVal('b-inbound',  fmtNeg(inputs.inboundShipping));
+  setVal('b-prep',     fmtNeg(inputs.prepCost));
+  setVal('b-ppc',      fmtNeg(inputs.ppcPerUnit));
+  setVal('b-returns',  fmtNeg(fba.returnsImpact));
+  setVal('b-tax',      fmtNeg(fba.incomeTaxDeduction + fba.vatDeduction));
+  setVal('b-misc',     fmtNeg(inputs.miscCost));
+  setVal('b-fbm-shipping', fmtNeg(fbm.fulfillment));
+
+  // FBA total
+  setVal('b-fba-total', fmt$(fba.netProfit));
+  const fbaEl = document.getElementById('b-fba-total');
+  fbaEl.style.color = fba.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  setVal('b-fba-margin-text', 'Margin ' + fmtPct(fba.margin) + ' · ROI ' + fmtPct(fba.roi));
+
+  // FBM total
+  setVal('b-fbm-total', fmt$(fbm.netProfit));
+  const fbmEl = document.getElementById('b-fbm-total');
+  fbmEl.style.color = fbm.netProfit >= 0 ? '#a78bfa' : 'var(--red)';
+  setVal('b-fbm-margin-text', 'Margin ' + fmtPct(fbm.margin) + ' · ROI ' + fmtPct(fbm.roi));
+
+  // ── Comparison ────────────────────────────────
+  setVal('c-fba-profit', fmt$(fba.netProfit));
+  colourProfit('c-fba-profit', fba.netProfit);
+  setVal('c-fba-roi', 'ROI: ' + fmtPct(fba.roi) + ' · Margin: ' + fmtPct(fba.margin));
+
+  setVal('c-fbm-profit', fmt$(fbm.netProfit));
+  document.getElementById('c-fbm-profit').style.color = fbm.netProfit >= 0 ? '#a78bfa' : 'var(--red)';
+  setVal('c-fbm-roi', 'ROI: ' + fmtPct(fbm.roi) + ' · Margin: ' + fmtPct(fbm.margin));
+
+  // Winner badges
+  const fbaWinner = document.getElementById('c-fba-winner');
+  const fbmWinner = document.getElementById('c-fbm-winner');
+  fbaWinner.innerHTML = '';
+  fbmWinner.innerHTML = '';
+
+  if (fba.netProfit > fbm.netProfit && fba.netProfit > 0) {
+    fbaWinner.innerHTML = '<div class="winner-badge">✓ Better Choice</div>';
+  } else if (fbm.netProfit > fba.netProfit && fbm.netProfit > 0) {
+    fbmWinner.innerHTML = '<div class="winner-badge">✓ Better Choice</div>';
+  }
+
+  // Recommendation text
+  const rec = document.getElementById('c-recommendation');
+  const diff = Math.abs(fba.netProfit - fbm.netProfit);
+  let msg = '';
+  if (fba.netProfit <= 0 && fbm.netProfit <= 0) {
+    msg = '⚠️ Both FBA and FBM are currently unprofitable at this price. Try increasing your selling price, reducing COGS, or lowering ad spend.';
+  } else if (fba.netProfit > fbm.netProfit) {
+    msg = `🏆 FBA earns <strong>$${diff.toFixed(2)} more per unit</strong> than FBM. FBA's higher fees are offset by Prime eligibility, buy box advantages, and hands-off fulfillment. Recommended if selling > 30 units/month.`;
+  } else if (fbm.netProfit > fba.netProfit) {
+    msg = `💡 FBM earns <strong>$${diff.toFixed(2)} more per unit</strong> than FBA. This often makes sense for oversized, heavy, or slow-moving products. Consider FBM if you have reliable, low-cost shipping.`;
+  } else {
+    msg = '⚖️ FBA and FBM produce equal profit at these inputs. FBA may win on volume due to Prime exposure.';
+  }
+  rec.innerHTML = msg;
+}
+
+/* ==============================================
+   EVENT LISTENERS
+============================================= */
+function attachListeners() {
+  // All inputs trigger re-render
+  const allInputs = document.querySelectorAll('input, select');
+  allInputs.forEach(el => {
+    el.addEventListener('input', render);
+    el.addEventListener('change', render);
+  });
+
+  // Slider display values
+  document.getElementById('ppcSlider').addEventListener('input', function() {
+    document.getElementById('ppcVal').textContent = '$' + parseFloat(this.value).toFixed(2);
+  });
+  document.getElementById('returnSlider').addEventListener('input', function() {
+    document.getElementById('returnVal').textContent = this.value + '%';
+  });
+
+  // Category → show/hide custom rate
+  document.getElementById('category').addEventListener('change', function() {
+    document.getElementById('customRefField').style.display =
+      this.value === 'custom' ? 'flex' : 'none';
+  });
+}
+
+/* ==============================================
+   LICENSE KEY GATEKEEPER
+   -----------------------------------------------
+   * Keys are checked against VALID_KEYS (hashed
+     at runtime - plain text is never stored).
+   * On success, the key hash goes into
+     localStorage to bypass the gate on return.
+   * After 5 wrong attempts, the form locks for
+     30 minutes (expiry stored in localStorage).
+============================================= */
+
+const VALID_KEYS = [
+  'AMZ-70-X92',
+  'PLF-44-K37',
+  'FBA-91-M55',
+  'ROI-28-Z84',
+  'SKU-63-T19',
+  'PPC-57-W30',
+  'NET-82-D46',
+  'BEP-15-Q71',
+  'SLR-39-H08',
+  'MGN-66-V22'
+];
+
+const LS_KEY       = 'pl_license_ok';
+const LS_ATTEMPTS  = 'pl_attempts';
+const LS_LOCKOUT   = 'pl_lockout_until';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS   = 30 * 60 * 1000;
+
+/* FNV-1a 32-bit hash: light obfuscation so raw
+   key strings never appear in localStorage. */
+function simpleHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+
+const VALID_HASHES = VALID_KEYS.map(k => simpleHash(k.toUpperCase()));
+
+const getAttempts = () => parseInt(localStorage.getItem(LS_ATTEMPTS) || '0');
+const getLockout  = () => parseInt(localStorage.getItem(LS_LOCKOUT)  || '0');
+const isLockedOut = () => Date.now() < getLockout();
+
+function verifyKey() {
+  if (isLockedOut()) { showLockScreen(); return; }
+  const inp  = document.getElementById('licenseInput');
+  const raw  = (inp.value || '').trim().toUpperCase();
+  const hash = simpleHash(raw);
+
+  if (VALID_HASHES.includes(hash)) {
+    /* SUCCESS */
+    localStorage.setItem(LS_KEY, hash);
+    localStorage.removeItem(LS_ATTEMPTS);
+    localStorage.removeItem(LS_LOCKOUT);
+    inp.classList.add('success');
+    showGateMsg('\u2713 Key verified \u2014 welcome, Founding Member!', 'success');
+    document.getElementById('verifyBtn').disabled = true;
+    setTimeout(unlockApp, 900);
+  } else {
+    /* FAILURE */
+    const attempts = getAttempts() + 1;
+    localStorage.setItem(LS_ATTEMPTS, attempts);
+    for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
+      const dot = document.getElementById('dot' + i);
+      if (dot) dot.classList.add('used');
+    }
+    inp.value = '';
+    inp.classList.remove('success');
+    void inp.offsetWidth;
+    inp.classList.add('shake');
+    setTimeout(() => inp.classList.remove('shake'), 450);
+    if (attempts >= MAX_ATTEMPTS) {
+      localStorage.setItem(LS_LOCKOUT, Date.now() + LOCKOUT_MS);
+      showLockScreen();
+    } else {
+      const left = MAX_ATTEMPTS - attempts;
+      showGateMsg(
+        '\u2717 Invalid key \u2014 ' + left + ' attempt' + (left === 1 ? '' : 's') + ' remaining.',
+        'error'
+      );
+    }
+  }
+}
+
+function showGateMsg(text, type) {
+  const el = document.getElementById('gateMsg');
+  el.textContent = text;
+  el.className   = type;
+}
+
+function showLockScreen() {
+  const until   = getLockout();
+  const diffMin = Math.max(1, Math.ceil((until - Date.now()) / 60000));
+  document.getElementById('gateUnlockForm').innerHTML =
+    '<div class="gate-locked-msg">' +
+      '<span class="lock-icon">\uD83D\uDD12</span>' +
+      '<div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--red);margin-bottom:8px;">Too Many Attempts</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">' +
+        'This device is locked for <strong style="color:var(--accent)">' + diffMin + ' minute' + (diffMin === 1 ? '' : 's') + '</strong>.<br/>' +
+        'Please try again later or contact support.' +
+      '</div>' +
+    '</div>';
+}
+
+function unlockApp() {
+  const gate = document.getElementById('licenseGate');
+  if (!gate) return;
+  gate.classList.add('hidden');
+  gate.addEventListener('animationend', () => gate.remove(), { once: true });
+}
+
+function checkExistingLicense() {
+  const attempts = getAttempts();
+  for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
+    const dot = document.getElementById('dot' + i);
+    if (dot) dot.classList.add('used');
+  }
+  if (isLockedOut()) { showLockScreen(); return; }
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved && VALID_HASHES.includes(saved)) {
+    const gate = document.getElementById('licenseGate');
+    if (gate) gate.remove();
+    return;
+  }
+  const inp = document.getElementById('licenseInput');
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey(); });
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', function() {
+  checkExistingLicense();
+  attachListeners();
+  render();
+});
+</script>
+
+</body>
+</html>
