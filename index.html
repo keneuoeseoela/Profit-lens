@@ -1727,21 +1727,16 @@ const LS_LOCKOUT      = 'pl_lockout_until';
 const LS_USER         = 'pl_user';              // current user session
 const LS_USERS        = 'pl_users';             // all registered users
 const LS_ANALYSES     = 'pl_analyses_';         // per user analysis tracking
-const LS_GEN_KEYS     = 'pl_generated_keys';
+const LS_GEN_KEYS     = 'pl_generated_keys';    // ADD THIS LINE
 const MAX_FREE        = 5;
 const MAX_ATTEMPTS    = 5;
 const LOCKOUT_MS      = 30 * 60 * 1000;
 
 /* ================================================================
-   SECTION 2 — FOUNDING MEMBER LICENSE KEYS
+   SECTION 2 — API ENDPOINT (Cloudflare Worker)
+   🔴 REPLACE THIS WITH YOUR ACTUAL CLOUDFLARE WORKER URL
 ================================================================ */
-const FOUNDING_KEYS = [
-  'AMZ-70-X92', 'PLF-44-K37', 'FBA-91-M55',
-  'ROI-28-Z84', 'SKU-63-T19', 'PPC-57-W30',
-  'NET-82-D46', 'BEP-15-Q71', 'SLR-39-H08', 'MGN-66-V22'
-];
-
-const KEYGEN_SALT = 'pl_v1_secret_2014_simon_lefa';
+const API_ENDPOINT = 'https://profitlens-api.seoelakeneuoe.workers.dev'; // CHANGE THIS!
 
 /* ================================================================
    SECTION 3 — HASH UTILITY (FNV-1a 32-bit)
@@ -1755,54 +1750,97 @@ function fnv32(str) {
   return h.toString(16).padStart(8, '0').toUpperCase();
 }
 
-/* Pre-hash founding member keys */
-const FOUNDING_HASHES = FOUNDING_KEYS.map(k => fnv32(k.toUpperCase()));
+/* ================================================================
+   SECTION 4 — LICENSE KEY MANAGEMENT (Now calls Cloudflare)
+================================================================ */
+let pendingKey = '';
 
-/* Generate a license key from a PayPal order/subscription ID */
-function generateLicenseKey(paypalId) {
-  const raw  = fnv32(paypalId + KEYGEN_SALT);
-  const a    = raw.slice(0, 3);
-  const b    = raw.slice(3, 6);
-  const c    = raw.slice(6, 8);
-  return 'PRM-' + a + '-' + b + c;
+// Generate a license key via Cloudflare Worker
+async function generateLicenseKey(paypalId) {
+  try {
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'generateKey',
+        data: {
+          transactionId: paypalId
+        }
+      })
+    });
+
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to generate key');
+    }
+    
+    return result.key;
+  } catch (error) {
+    console.error('Key generation failed:', error);
+    throw error;
+  }
 }
 
-/* Check if a key is valid (founding member or generated) */
-function isValidKey(inputKey) {
-  const upper = inputKey.toUpperCase().trim();
-  const hash  = fnv32(upper);
+// Validate a key via Cloudflare Worker
+async function isValidKey(inputKey) {
+  try {
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'validateKey',
+        data: {
+          key: inputKey
+        }
+      })
+    });
 
-  // Check founding member keys
-  if (FOUNDING_HASHES.includes(hash)) return true;
-
-  // Check locally-stored generated keys
-  const stored = getGeneratedKeyHashes();
-  return stored.includes(hash);
+    const result = await response.json();
+    
+    if (!result.success) {
+      return false;
+    }
+    
+    // If valid, store locally for quick access
+    if (result.valid) {
+      const hash = fnv32(inputKey.toUpperCase().trim());
+      const stored = getGeneratedKeyHashes();
+      if (!stored.includes(hash)) {
+        stored.push(hash);
+        localStorage.setItem(LS_GEN_KEYS, JSON.stringify(stored));
+      }
+    }
+    
+    return result.valid;
+  } catch (error) {
+    console.error('Key validation failed:', error);
+    return false;
+  }
 }
 
+// Get locally stored key hashes (for quick checking)
 function getGeneratedKeyHashes() {
-  try { return JSON.parse(localStorage.getItem(LS_GEN_KEYS) || '[]'); }
-  catch(e) { return []; }
-}
-
-function storeGeneratedKey(key) {
-  const hashes = getGeneratedKeyHashes();
-  const h = fnv32(key.toUpperCase());
-  if (!hashes.includes(h)) { hashes.push(h); localStorage.setItem(LS_GEN_KEYS, JSON.stringify(hashes)); }
+  try { 
+    return JSON.parse(localStorage.getItem(LS_GEN_KEYS) || '[]'); 
+  } catch(e) { 
+    return []; 
+  }
 }
 
 /* ================================================================
-   SECTION 4 — USER AUTHENTICATION & SERVER-SIDE TRACKING
-   Using localStorage as a mock database to simulate server-side tracking
+   SECTION 5 — USER AUTHENTICATION & TRACKING
 ================================================================ */
 let currentUser = null;
 let isPremium = false;
 let freeCount = 0;
-let pendingKey = '';
 
 function initUsers() {
   if (!localStorage.getItem(LS_USERS)) {
-    // Initialize with empty users object
     localStorage.setItem(LS_USERS, JSON.stringify({}));
   }
 }
@@ -1868,26 +1906,22 @@ function handleSignup() {
     return;
   }
   
-  // Create new user with analysis tracking
   users[email] = {
     password: hashPassword(password),
     createdAt: Date.now(),
     premium: false,
-    analysesUsed: 0,  // Track analyses used
-    lastAnalysisDate: null,
-    createdAt: new Date().toISOString()
+    analysesUsed: 0,
+    lastAnalysisDate: null
   };
   
   saveUsers(users);
   
   successEl.textContent = 'Account created! You can now login.';
   
-  // Clear form
   document.getElementById('signupEmail').value = '';
   document.getElementById('signupPassword').value = '';
   document.getElementById('signupConfirm').value = '';
   
-  // Switch to login after 2 seconds
   setTimeout(() => {
     switchAuthTab('login');
   }, 2000);
@@ -1913,29 +1947,20 @@ function handleLogin() {
     return;
   }
   
-  // Login successful
   currentUser = email;
   localStorage.setItem(LS_USER, email);
   
-  // Get user's analysis count from the "server" (localStorage mock database)
   freeCount = user.analysesUsed || 0;
-  
-  // Also store in local cache for quick access
   localStorage.setItem(LS_ANALYSES + email, freeCount);
   
-  // Hide auth gate
   document.getElementById('authGate').style.display = 'none';
   
-  // Update UI
   updateHeaderForUser();
-  
-  // Start app
   initAccessControl();
 }
 
 function handleLogout() {
   if (currentUser) {
-    // Sync local count back to "server" before logout
     const users = getUsers();
     if (users[currentUser]) {
       users[currentUser].analysesUsed = freeCount;
@@ -1947,19 +1972,16 @@ function handleLogout() {
   currentUser = null;
   localStorage.removeItem(LS_USER);
   
-  // Show auth gate
   document.getElementById('authGate').style.display = 'flex';
   document.getElementById('licenseGate').style.display = 'none';
   document.getElementById('upgradeWall').style.display = 'none';
   document.getElementById('freeTrialBanner').style.display = 'none';
   
-  // Reset UI
   document.getElementById('userMenu').style.display = 'none';
   document.getElementById('headerAuthBtn').style.display = 'block';
   document.getElementById('headerBadge').style.display = 'none';
   document.getElementById('headerUpgradeBtn').style.display = 'none';
   
-  // Reset forms
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginError').textContent = '';
@@ -1982,7 +2004,6 @@ function checkExistingSession() {
     const users = getUsers();
     if (users[savedUser]) {
       currentUser = savedUser;
-      // Get user's analysis count from the "server"
       freeCount = users[savedUser].analysesUsed || 0;
       document.getElementById('authGate').style.display = 'none';
       updateHeaderForUser();
@@ -2021,21 +2042,16 @@ function showAuthGate() {
 }
 
 /* ================================================================
-   SECTION 5 — SERVER-SYNCED FREE COUNT TRACKING
+   SECTION 6 — FREE COUNT TRACKING
 ================================================================ */
 function getFreeCount() {
   if (!currentUser) return 0;
   
-  // First check local cache
   const localCount = parseInt(localStorage.getItem(LS_ANALYSES + currentUser) || '0');
-  
-  // Then verify with "server" (localStorage mock database)
   const users = getUsers();
   const serverCount = users[currentUser]?.analysesUsed || 0;
   
-  // If there's a discrepancy, trust the server
   if (localCount !== serverCount) {
-    console.log('Syncing analysis count from server');
     localStorage.setItem(LS_ANALYSES + currentUser, serverCount);
     return serverCount;
   }
@@ -2048,10 +2064,8 @@ function incrementFreeCount() {
   
   const newCount = getFreeCount() + 1;
   
-  // Update local cache
   localStorage.setItem(LS_ANALYSES + currentUser, newCount);
   
-  // Update "server" (localStorage mock database)
   const users = getUsers();
   if (users[currentUser]) {
     users[currentUser].analysesUsed = newCount;
@@ -2060,15 +2074,11 @@ function incrementFreeCount() {
   }
   
   freeCount = newCount;
-  
-  // Log for debugging (remove in production)
-  console.log(`User ${currentUser} has used ${newCount}/${MAX_FREE} analyses`);
 }
 
 function resetFreeCount() {
   if (!currentUser) return;
   
-  // This would typically be called after upgrading to premium
   const users = getUsers();
   if (users[currentUser]) {
     users[currentUser].analysesUsed = 0;
@@ -2084,24 +2094,31 @@ function getAttempts()   { return parseInt(localStorage.getItem(LS_ATTEMPTS)   |
 function getLockout()    { return parseInt(localStorage.getItem(LS_LOCKOUT)    || '0'); }
 function isLockedOut()   { return Date.now() < getLockout(); }
 
-function initAccessControl() {
-  // 1. Check for existing premium license
+/* ================================================================
+   SECTION 7 — ACCESS CONTROL
+================================================================ */
+async function initAccessControl() {
+  // Check for existing premium license (async now)
   const savedHash = localStorage.getItem(LS_LICENSE);
   if (savedHash) {
-    const allHashes = [...FOUNDING_HASHES, ...getGeneratedKeyHashes()];
-    if (allHashes.includes(savedHash)) {
+    // We need to validate with server, but for speed, check local first
+    const localKeys = getGeneratedKeyHashes();
+    if (localKeys.includes(savedHash)) {
       activatePremium(false);
       return;
     }
+    
+    // If not in local, check with server
+    const stored = getGeneratedKeyHashes();
+    // Find the original key (this is a limitation - we'd need to store keys)
+    // For now, we'll just check server validation on license gate entry
   }
 
-  // 2. Free tier — check usage from server-synced count
   freeCount = getFreeCount();
 
   if (freeCount < MAX_FREE) {
     activateFreeTier();
   } else {
-    // Free uses exhausted — show upgrade wall
     showUpgradeWall();
   }
 }
@@ -2109,7 +2126,6 @@ function initAccessControl() {
 function activatePremium(animate) {
   isPremium = true;
 
-  // Hide all overlays
   ['authGate', 'licenseGate', 'upgradeWall', 'paymentSuccess', 'freeTrialBanner'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -2122,12 +2138,10 @@ function activatePremium(animate) {
     }
   });
 
-  // Show premium badge, hide upgrade button
   document.getElementById('headerBadge').style.display = 'flex';
   document.getElementById('headerUpgradeBtn').style.display = 'none';
   document.getElementById('userMenu').style.display = 'flex';
 
-  // Remove analyze button, enable live updates
   const ab = document.getElementById('analyzeBtn');
   if (ab) ab.style.display = 'none';
 
@@ -2138,11 +2152,9 @@ function activateFreeTier() {
   isPremium = false;
   const remaining = MAX_FREE - freeCount;
 
-  // Show trial banner
   const banner = document.getElementById('freeTrialBanner');
   banner.style.display = 'flex';
 
-  // Build pips
   const pipsEl = document.getElementById('trialPips');
   pipsEl.innerHTML = '';
   for (let i = 0; i < MAX_FREE; i++) {
@@ -2152,20 +2164,17 @@ function activateFreeTier() {
   }
   document.getElementById('trialCountText').textContent = remaining;
 
-  // Show analyze button
   document.getElementById('analyzeBtn').style.display = 'block';
   document.getElementById('analysesLeft').textContent = remaining;
 
-  // Premium header shows upgrade button
   document.getElementById('headerBadge').style.display = 'none';
   document.getElementById('headerUpgradeBtn').style.display = 'block';
 
-  // Run a silent render so values are ready
   render();
 }
 
 /* ================================================================
-   SECTION 6 — FREE TIER: ANALYZE BUTTON
+   SECTION 8 — FREE TIER: ANALYZE BUTTON
 ================================================================ */
 function runFreeAnalysis() {
   if (!currentUser) {
@@ -2180,29 +2189,22 @@ function runFreeAnalysis() {
     return;
   }
 
-  // Increment counter (this syncs to server)
   incrementFreeCount();
-
-  // Re-render and flash results
   render();
 
-  // Update UI
   const remaining = MAX_FREE - freeCount;
   document.getElementById('analysesLeft').textContent = remaining;
   document.getElementById('trialCountText').textContent = remaining;
 
-  // Update pips
   const pips = document.querySelectorAll('.trial-pip');
   pips.forEach((p, i) => {
     p.className = 'trial-pip' + (i < freeCount ? ' used' : ' active');
   });
 
-  // Briefly show results
   const strip = document.getElementById('resultsStrip');
   strip.style.opacity = '1';
   strip.style.filter  = 'none';
 
-  // If this was the last free use, show upgrade wall after a pause
   if (freeCount >= MAX_FREE) {
     document.getElementById('analyzeBtn').innerHTML =
       '<div class="analyze-inner"><div class="analyze-count" style="color:var(--red)">Free analyses exhausted</div>' +
@@ -2219,18 +2221,16 @@ function resumeFreeTrial() {
 }
 
 /* ================================================================
-   SECTION 7 — OVERLAY CONTROLS
+   SECTION 9 — OVERLAY CONTROLS
 ================================================================ */
 function showUpgradeWall() {
   const wall = document.getElementById('upgradeWall');
   wall.style.display = 'flex';
   wall.classList.remove('hidden');
 
-  // Hide other overlays
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('licenseGate').style.display = 'none';
 
-  // Update "go back" link
   const resumeLink = document.getElementById('resumeFreeLink');
   const remaining  = currentUser ? MAX_FREE - getFreeCount() : 0;
   resumeLink.textContent = remaining > 0
@@ -2245,7 +2245,6 @@ function showLicenseGateFromUpgrade() {
   gate.style.display = 'flex';
   gate.classList.remove('hidden');
 
-  // Restore attempt dots
   const attempts = getAttempts();
   for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
     const dot = document.getElementById('dot' + i);
@@ -2253,15 +2252,14 @@ function showLicenseGateFromUpgrade() {
   }
   if (isLockedOut()) showLockScreen();
 
-  // Wire Enter key
   const inp = document.getElementById('licenseInput');
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey(); }, { once: true });
 }
 
 /* ================================================================
-   SECTION 8 — LICENSE KEY GATE LOGIC
+   SECTION 10 — LICENSE KEY GATE LOGIC (UPDATED)
 ================================================================ */
-function verifyKey() {
+async function verifyKey() {
   if (isLockedOut()) { showLockScreen(); return; }
 
   const inp   = document.getElementById('licenseInput');
@@ -2269,47 +2267,61 @@ function verifyKey() {
 
   if (!raw) { showGateMsg('Please enter your key.', 'error'); return; }
 
-  if (isValidKey(raw)) {
-    // SUCCESS
-    const hash = fnv32(raw);
-    localStorage.setItem(LS_LICENSE, hash);
-    localStorage.removeItem(LS_ATTEMPTS);
-    localStorage.removeItem(LS_LOCKOUT);
+  // Show loading
+  const verifyBtn = document.getElementById('verifyBtn');
+  const originalText = verifyBtn.textContent;
+  verifyBtn.textContent = '⏳ Verifying...';
+  verifyBtn.disabled = true;
 
-    inp.classList.add('valid');
-    showGateMsg('✓ Access granted — welcome!', 'success');
-    document.getElementById('verifyBtn').disabled = true;
+  try {
+    const valid = await isValidKey(raw);
 
-    // Reset user's free count if they were a free user
-    if (currentUser) {
-      resetFreeCount();
-    }
+    if (valid) {
+      // SUCCESS
+      const hash = fnv32(raw);
+      localStorage.setItem(LS_LICENSE, hash);
+      localStorage.removeItem(LS_ATTEMPTS);
+      localStorage.removeItem(LS_LOCKOUT);
 
-    setTimeout(() => activatePremium(true), 900);
+      inp.classList.add('valid');
+      showGateMsg('✓ Access granted — welcome!', 'success');
+      verifyBtn.disabled = true;
 
-  } else {
-    // FAILURE
-    const attempts = getAttempts() + 1;
-    localStorage.setItem(LS_ATTEMPTS, attempts);
+      if (currentUser) {
+        resetFreeCount();
+      }
 
-    for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
-      const dot = document.getElementById('dot' + i);
-      if (dot) dot.classList.add('used');
-    }
+      setTimeout(() => activatePremium(true), 900);
 
-    inp.value = '';
-    inp.classList.remove('valid');
-    void inp.offsetWidth;
-    inp.classList.add('shake');
-    setTimeout(() => inp.classList.remove('shake'), 450);
-
-    if (attempts >= MAX_ATTEMPTS) {
-      localStorage.setItem(LS_LOCKOUT, Date.now() + LOCKOUT_MS);
-      showLockScreen();
     } else {
-      const left = MAX_ATTEMPTS - attempts;
-      showGateMsg('✗ Invalid key — ' + left + ' attempt' + (left === 1 ? '' : 's') + ' remaining.', 'error');
+      // FAILURE
+      const attempts = getAttempts() + 1;
+      localStorage.setItem(LS_ATTEMPTS, attempts);
+
+      for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
+        const dot = document.getElementById('dot' + i);
+        if (dot) dot.classList.add('used');
+      }
+
+      inp.value = '';
+      inp.classList.remove('valid');
+      void inp.offsetWidth;
+      inp.classList.add('shake');
+      setTimeout(() => inp.classList.remove('shake'), 450);
+
+      if (attempts >= MAX_ATTEMPTS) {
+        localStorage.setItem(LS_LOCKOUT, Date.now() + LOCKOUT_MS);
+        showLockScreen();
+      } else {
+        const left = MAX_ATTEMPTS - attempts;
+        showGateMsg('✗ Invalid key — ' + left + ' attempt' + (left === 1 ? '' : 's') + ' remaining.', 'error');
+      }
     }
+  } catch (error) {
+    showGateMsg('Error validating key. Please try again.', 'error');
+  } finally {
+    verifyBtn.textContent = originalText;
+    verifyBtn.disabled = false;
   }
 }
 
@@ -2332,7 +2344,7 @@ function showLockScreen() {
 }
 
 /* ================================================================
-   SECTION 9 — PAYPAL.ME FLOW
+   SECTION 11 — PAYPAL.ME FLOW (UPDATED)
 ================================================================ */
 function openTxPanel(plan) {
   setTimeout(function () {
@@ -2349,7 +2361,7 @@ function isValidTxId(str) {
   return /^[A-Z0-9]{17}$/i.test(str.trim());
 }
 
-function redeemTx(plan) {
+async function redeemTx(plan) {
   var inp    = document.getElementById('txid-' + plan);
   var errEl  = document.getElementById('txerr-' + plan);
   var raw    = inp.value.trim().toUpperCase().replace(/\s/g, '');
@@ -2375,8 +2387,23 @@ function redeemTx(plan) {
     return;
   }
 
-  var key = generateLicenseKey(raw);
-  onPaymentSuccess(key, plan, raw);
+  // Show loading
+  const btn = document.querySelector(`#tx-panel-${plan} .tx-go`);
+  const originalText = btn.textContent;
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+
+  try {
+    var key = await generateLicenseKey(raw);
+    onPaymentSuccess(key, plan, raw);
+  } catch (error) {
+    inp.classList.add('tx-error');
+    errEl.textContent = error.message || 'Failed to generate key. Please try again.';
+    errEl.classList.add('show');
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
 }
 
 function mountPayPalButtons() {
@@ -2395,12 +2422,18 @@ function mountPayPalButtons() {
 }
 
 /* ================================================================
-   SECTION 10 — PAYMENT SUCCESS: KEY DELIVERY
+   SECTION 12 — PAYMENT SUCCESS: KEY DELIVERY
 ================================================================ */
 function onPaymentSuccess(key, plan, transactionId) {
   pendingKey = key;
 
-  storeGeneratedKey(key);
+  // Store locally for quick access
+  const hashes = getGeneratedKeyHashes();
+  const h = fnv32(key.toUpperCase());
+  if (!hashes.includes(h)) {
+    hashes.push(h);
+    localStorage.setItem(LS_GEN_KEYS, JSON.stringify(hashes));
+  }
 
   document.getElementById('upgradeWall').style.display = 'none';
   document.getElementById('generatedKeyDisplay').textContent = key;
@@ -2429,7 +2462,6 @@ function activateGeneratedKey() {
   if (!pendingKey) return;
   localStorage.setItem(LS_LICENSE, fnv32(pendingKey.toUpperCase()));
   
-  // Reset user's free count if they were a free user
   if (currentUser) {
     resetFreeCount();
   }
@@ -2442,7 +2474,7 @@ function activateGeneratedKey() {
 }
 
 /* ================================================================
-   SECTION 11 — FBA FEE ENGINE (unchanged)
+   SECTION 13 — FBA FEE ENGINE (unchanged)
 ================================================================ */
 const FBA_TIERS = [
   { name:'Small Standard', desc:'≤ 15×12×0.75 in, ≤ 16 oz',
@@ -2545,7 +2577,7 @@ function calculateFBM(i) {
 }
 
 /* ================================================================
-   SECTION 12 — UI HELPERS & RENDER (unchanged)
+   SECTION 14 — UI HELPERS & RENDER (unchanged)
 ================================================================ */
 const fmt$   = n => (n >= 0 ? '' : '–') + '$' + Math.abs(n).toFixed(2);
 const fmtNeg = n => '–$' + n.toFixed(2);
@@ -2667,7 +2699,7 @@ function render() {
 }
 
 /* ================================================================
-   SECTION 13 — EVENT LISTENERS
+   SECTION 15 — EVENT LISTENERS
 ================================================================ */
 function attachListeners() {
   document.querySelectorAll('input, select').forEach(el => {
@@ -2691,7 +2723,7 @@ function attachListeners() {
 }
 
 /* ================================================================
-   SECTION 14 — INIT
+   SECTION 16 — INIT
 ================================================================ */
 document.addEventListener('DOMContentLoaded', function() {
   initUsers();
@@ -2705,5 +2737,3 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
-</body>
-</html>
