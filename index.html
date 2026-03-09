@@ -2378,13 +2378,35 @@ async function redeemTx(plan) {
     return;
   }
 
-  if (!isValidTxId(raw)) {
-    inp.classList.add('tx-error');
-    errEl.textContent = "That doesn't look right — PayPal Transaction IDs are exactly 17 characters (letters and numbers). Check your PayPal confirmation email.";
-    errEl.classList.add('show');
-    void inp.offsetWidth;
-    inp.focus();
-    return;
+  // 🔧 TEST MODE - Allow any ID starting with TEST during development
+  const isTestMode = raw.startsWith('TEST');
+  
+  // Only validate PayPal format if NOT in test mode
+  if (!isTestMode) {
+    if (!isValidTxId(raw)) {
+      inp.classList.add('tx-error');
+      errEl.textContent = "That doesn't look right — PayPal Transaction IDs are exactly 17 characters (letters and numbers). Check your PayPal confirmation email.";
+      errEl.classList.add('show');
+      void inp.offsetWidth;
+      inp.focus();
+      return;
+    }
+  } else {
+    // In test mode, pad with zeros to make it 17 chars if needed
+    let testId = raw;
+    while (testId.length < 17) {
+      testId += '0';
+    }
+    raw = testId; // Use the padded version
+    console.log('🧪 TEST MODE: Using', raw);
+    
+    // Optional: Show test mode indicator
+    const testMsg = document.createElement('div');
+    testMsg.className = 'tx-hint';
+    testMsg.style.color = 'var(--accent)';
+    testMsg.innerHTML = '🧪 Test mode active - no payment required';
+    errEl.parentNode.insertBefore(testMsg, errEl.nextSibling);
+    setTimeout(() => testMsg.remove(), 3000);
   }
 
   // Show loading
