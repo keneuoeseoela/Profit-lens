@@ -1,0 +1,2634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ProfitLens — Amazon FBA Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<!--
+  ╔══════════════════════════════════════════════════════╗
+  ║  PAYPAL.ME SETUP — 1 STEP ONLY                       ║
+  ║  Search this file for YOUR_PAYPAL_ME and replace     ║
+  ║  both instances with your PayPal.me username.        ║
+  ║  Example: paypal.me/profitlens                      ║
+  ╚══════════════════════════════════════════════════════╝
+-->
+
+<style>
+/* =============================================
+   CSS CUSTOM PROPERTIES & RESET
+============================================= */
+:root {
+  --bg-deep:      #080c14;
+  --bg-base:      #0d1320;
+  --bg-card:      #111827;
+  --bg-input:     #0f1828;
+  --bg-hover:     #162035;
+  --border:       #1e2d45;
+  --border-light: #253650;
+  --accent:       #f0a500;
+  --accent-dim:   #c4860060;
+  --accent-glow:  #f0a50022;
+  --green:        #00d97e;
+  --green-dim:    #00d97e22;
+  --red:          #ff4d6a;
+  --red-dim:      #ff4d6a22;
+  --blue:         #3d8bff;
+  --blue-dim:     #3d8bff22;
+  --purple:       #a78bfa;
+  --text-primary: #e8edf5;
+  --text-secondary:#8a9ab5;
+  --text-muted:   #4a5a73;
+  --font-display: 'Syne', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+  --font-body:    'Inter', sans-serif;
+  --radius:       10px;
+  --radius-sm:    6px;
+  --transition:   150ms ease;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* =============================================
+   SHARED OVERLAY BASE
+============================================= */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8,12,20,0.97);
+  backdrop-filter: blur(8px);
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.overlay.hidden {
+  animation: overlayOut 0.35s ease forwards;
+  pointer-events: none;
+}
+@keyframes overlayOut {
+  to { opacity: 0; transform: scale(1.02); }
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(22px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* =============================================
+   GATE CARD (shared by license & success screens)
+============================================= */
+.gate-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 38px 42px 34px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(240,165,0,0.07);
+  animation: cardIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+  position: relative;
+  overflow: hidden;
+}
+.gate-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.gate-card::after {
+  content: '';
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+.gate-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 20px;
+  margin-bottom: 26px;
+}
+.gate-logo .logo-box {
+  width: 34px; height: 34px;
+  background: var(--accent); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.gate-logo .logo-text span { color: var(--accent); }
+.gate-heading {
+  font-family: var(--font-display);
+  font-size: 21px; font-weight: 800;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
+}
+.gate-sub {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 26px; line-height: 1.65;
+}
+.gate-sub strong { color: var(--accent); font-weight: 600; }
+.gate-divider { height: 1px; background: var(--border); margin: 22px 0 18px; }
+.gate-footer {
+  font-size: 11px; color: var(--text-muted);
+  text-align: center; line-height: 1.7;
+}
+.gate-footer strong { color: var(--accent); }
+.gate-link {
+  color: var(--accent); cursor: pointer;
+  font-size: 12px; text-decoration: underline;
+  background: none; border: none;
+  font-family: var(--font-body);
+  transition: opacity var(--transition);
+}
+.gate-link:hover { opacity: 0.7; }
+
+/* =============================================
+   AUTH CARD (Login/Signup)
+============================================= */
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.auth-tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex: 1;
+}
+.auth-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.auth-field label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.auth-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.auth-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.auth-input.error {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-dim);
+}
+.auth-error {
+  font-size: 11px;
+  color: var(--red);
+  min-height: 16px;
+}
+.auth-success {
+  font-size: 11px;
+  color: var(--green);
+  text-align: center;
+}
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-email {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.logout-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.logout-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* =============================================
+   BUTTONS
+============================================= */
+.btn {
+  width: 100%; padding: 13px;
+  border: none; border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.btn:active { transform: translateY(0) !important; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+.btn-accent {
+  background: var(--accent); color: #000;
+}
+.btn-accent:hover { background: #ffb820; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,165,0,0.35); }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+.btn-green { background: var(--green); color: #000; }
+.btn-green:hover { background: #00f090; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,217,126,0.3); }
+
+/* =============================================
+   FREE TRIAL BANNER
+============================================= */
+#freeTrialBanner {
+  position: relative; z-index: 10;
+  background: linear-gradient(135deg, #0f1c0a, #141f06);
+  border-bottom: 1px solid #2a4a1a;
+  padding: 10px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.trial-info { display: flex; align-items: center; gap: 12px; }
+.trial-pips { display: flex; gap: 5px; }
+.trial-pip {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--green); opacity: 0.3;
+  transition: opacity var(--transition), transform var(--transition);
+}
+.trial-pip.active { opacity: 1; transform: scale(1.1); }
+.trial-pip.used { background: var(--text-muted); opacity: 0.4; }
+.trial-text {
+  font-size: 12px; font-weight: 500; color: var(--text-secondary);
+}
+.trial-text strong { color: var(--green); }
+.trial-cta {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--accent);
+  cursor: pointer; padding: 5px 12px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 20px; background: var(--accent-glow);
+  transition: background var(--transition), border-color var(--transition);
+  white-space: nowrap;
+}
+.trial-cta:hover { background: rgba(240,165,0,0.15); border-color: var(--accent); }
+
+/* =============================================
+   ANALYZE BUTTON (free tier)
+============================================= */
+#analyzeBtn {
+  display: none;
+  position: relative; z-index: 2;
+  margin: 16px 0 0;
+}
+#analyzeBtn.show { display: block; }
+.analyze-inner {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-hover));
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  text-align: center;
+}
+.analyze-inner .analyze-count {
+  font-size: 12px; color: var(--text-muted); margin-bottom: 10px;
+}
+.analyze-inner .analyze-count strong { color: var(--green); }
+
+/* =============================================
+   UPGRADE WALL
+============================================= */
+#upgradeWall {
+  overflow-y: auto;
+}
+.upgrade-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 36px 40px 32px;
+  max-width: 680px;
+  width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+  animation: cardIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+  position: relative;
+  overflow: hidden;
+}
+.upgrade-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--green), var(--accent), var(--purple));
+}
+.upgrade-header { text-align: center; margin-bottom: 30px; }
+.upgrade-header .emoji { font-size: 36px; display: block; margin-bottom: 12px; }
+.upgrade-header h2 {
+  font-family: var(--font-display);
+  font-size: 24px; font-weight: 800;
+  letter-spacing: -0.5px; margin-bottom: 8px;
+}
+.upgrade-header p {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 380px; margin: 0 auto;
+}
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media(max-width: 560px) { .pricing-grid { grid-template-columns: 1fr; } }
+.plan-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: default;
+}
+.plan-card:hover { border-color: var(--border-light); transform: translateY(-2px); }
+.plan-card.featured {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(240,165,0,0.05), transparent);
+}
+.plan-card.featured:hover { border-color: #ffb820; }
+.plan-badge {
+  position: absolute; top: 14px; right: 14px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px; border-radius: 3px;
+}
+.plan-badge.limited {
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+}
+.plan-badge.standard {
+  background: var(--blue-dim);
+  border: 1px solid rgba(61,139,255,0.3);
+  color: var(--blue);
+}
+.plan-name {
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.plan-price {
+  font-family: var(--font-mono);
+  font-size: 32px; font-weight: 500;
+  letter-spacing: -1.5px; line-height: 1;
+  color: var(--text-primary); margin-bottom: 3px;
+}
+.plan-price span { font-size: 14px; color: var(--text-muted); letter-spacing: 0; }
+.plan-cycle {
+  font-size: 11px; color: var(--text-muted); margin-bottom: 16px;
+}
+.plan-features {
+  list-style: none; margin-bottom: 18px;
+}
+.plan-features li {
+  font-size: 12px; color: var(--text-secondary);
+  padding: 4px 0; display: flex; align-items: center; gap: 7px;
+}
+.plan-features li::before {
+  content: '✓'; color: var(--green);
+  font-weight: 700; font-size: 11px; flex-shrink: 0;
+}
+.paypal-btn-wrap { min-height: 50px; }
+
+.upgrade-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.upgrade-divider::before, .upgrade-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.upgrade-actions {
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+}
+.upgrade-actions .gate-link { margin-top: 4px; }
+
+/* =============================================
+   PAYMENT SUCCESS MODAL
+============================================= */
+#paymentSuccess {
+  z-index: 10000;
+}
+.success-card {
+  background: var(--bg-card);
+  border: 1px solid var(--green);
+  border-radius: 18px;
+  padding: 36px 40px 32px;
+  max-width: 460px; width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 40px rgba(0,217,126,0.1);
+  animation: cardIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+  position: relative; overflow: hidden;
+  text-align: center;
+}
+.success-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--green);
+}
+.success-icon {
+  font-size: 44px; display: block; margin-bottom: 14px;
+  animation: successPop 0.6s cubic-bezier(0.22,1,0.36,1) 0.2s both;
+}
+@keyframes successPop {
+  from { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0); }
+}
+.success-heading {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 800;
+  margin-bottom: 6px; color: var(--green);
+}
+.success-sub {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 24px; line-height: 1.6;
+}
+.key-display-wrap {
+  background: var(--bg-input);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  position: relative;
+}
+.key-display-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+}
+.key-display-value {
+  font-family: var(--font-mono);
+  font-size: 22px; font-weight: 500;
+  letter-spacing: 3px; color: var(--green);
+  user-select: all;
+}
+.key-copy-btn {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--green-dim); border: 1px solid var(--green);
+  color: var(--green); border-radius: var(--radius-sm);
+  padding: 5px 10px; font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: background var(--transition);
+  font-family: var(--font-body);
+}
+.key-copy-btn:hover { background: rgba(0,217,126,0.2); }
+.key-warning {
+  background: rgba(240,165,0,0.08);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px; margin-bottom: 18px;
+  font-size: 11px; color: var(--accent); line-height: 1.6; text-align: left;
+}
+.key-warning strong { font-weight: 700; }
+
+/* =============================================
+   HEADER
+============================================= */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(8,12,20,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 17px; letter-spacing: -0.3px;
+}
+.header-logo .logo-icon {
+  width: 28px; height: 28px; background: var(--accent);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.header-logo span { color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.founding-badge {
+  display: flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, #1a1200, #2a1e00);
+  border: 1px solid #f0a50040; border-radius: 20px;
+  padding: 5px 12px;
+  font-family: var(--font-display);
+  font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--accent);
+}
+.founding-badge::before { content: '★'; font-size: 10px; }
+.premium-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, #001a0d, #001a0d);
+  border: 1px solid rgba(0,217,126,0.3); border-radius: 20px;
+  padding: 5px 12px;
+  font-family: var(--font-display);
+  font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--green);
+}
+.upgrade-btn-sm {
+  background: var(--accent); color: #000;
+  border: none; border-radius: 20px;
+  padding: 5px 14px; font-family: var(--font-display);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  cursor: pointer; transition: background var(--transition);
+}
+.upgrade-btn-sm:hover { background: #ffb820; }
+.auth-btn-sm {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.auth-btn-sm:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* =============================================
+   MAIN LAYOUT
+============================================= */
+.main {
+  position: relative; z-index: 1;
+  max-width: 1400px; margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+.page-title {
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.page-headline {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 32px); font-weight: 800;
+  letter-spacing: -0.8px; line-height: 1.2;
+  margin-bottom: 28px;
+}
+.page-headline span { color: var(--accent); }
+
+/* =============================================
+   RESULTS STRIP
+============================================= */
+.results-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-bottom: 24px;
+  position: relative;
+}
+.result-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: border-color var(--transition);
+  position: relative; overflow: hidden;
+}
+.result-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--card-accent, var(--accent)); opacity: 0.7;
+}
+.result-card.profit { --card-accent: var(--green); }
+.result-card.loss   { --card-accent: var(--red); }
+.result-card.roi    { --card-accent: var(--blue); }
+.result-card.breakeven { --card-accent: var(--accent); }
+.result-card.fbm    { --card-accent: var(--purple); }
+.result-card-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.result-card-label .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--card-accent, var(--accent));
+}
+.result-card-value {
+  font-family: var(--font-mono);
+  font-size: clamp(20px, 2.5vw, 28px); font-weight: 500;
+  letter-spacing: -1px; line-height: 1; margin-bottom: 4px;
+  transition: color var(--transition);
+}
+.result-card-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.val-positive { color: var(--green) !important; }
+.val-negative { color: var(--red) !important; }
+.val-neutral  { color: var(--accent) !important; }
+.val-blue     { color: var(--blue) !important; }
+
+/* blur overlay for free users on results */
+.results-blur-overlay {
+  display: none;
+  position: absolute; inset: 0; border-radius: var(--radius);
+  background: rgba(8,12,20,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 5;
+  align-items: center; justify-content: center; flex-direction: column;
+  gap: 10px; text-align: center; padding: 20px;
+}
+.results-blur-overlay.show { display: flex; }
+.results-blur-overlay p { font-size: 13px; color: var(--text-secondary); }
+.results-blur-overlay strong { color: var(--accent); }
+
+/* =============================================
+   CONTENT GRID
+============================================= */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+/* =============================================
+   PANELS
+============================================= */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
+  color: var(--text-primary);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-title .icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  background: var(--accent-glow); border: 1px solid var(--accent-dim);
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+}
+.panel-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+/* =============================================
+   FORM ELEMENTS
+============================================= */
+.field-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field.full { grid-column: 1 / -1; }
+label {
+  font-size: 11px; font-weight: 500; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 5px;
+}
+label .hint { font-size: 10px; color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.input-wrap { position: relative; }
+.input-prefix {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 13px; color: var(--text-muted);
+  pointer-events: none; user-select: none;
+}
+.input-suffix {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+  pointer-events: none; user-select: none;
+}
+input[type="number"], input[type="text"], input[type="email"], input[type="password"], select {
+  width: 100%; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-family: var(--font-mono); font-size: 13px; color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+  -moz-appearance: textfield; appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+input.has-prefix { padding-left: 24px; }
+input.has-suffix { padding-right: 28px; }
+input:focus, select:focus {
+  border-color: var(--accent); background: var(--bg-hover);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234a5a73' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px; -webkit-appearance: none; appearance: none;
+}
+select option { background: var(--bg-card); color: var(--text-primary); }
+.section-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin: 4px 0 2px;
+}
+.section-divider::before, .section-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* =============================================
+   SLIDER
+============================================= */
+.slider-wrap { display: flex; flex-direction: column; gap: 6px; }
+.slider-header { display: flex; align-items: center; justify-content: space-between; }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px; border-radius: 2px;
+  background: var(--border); outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 8px var(--accent-dim);
+  cursor: pointer; transition: transform var(--transition);
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); border: none; cursor: pointer;
+}
+.slider-value {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  color: var(--accent); min-width: 48px; text-align: right;
+}
+
+/* =============================================
+   TOGGLE
+============================================= */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; transition: border-color var(--transition);
+}
+.toggle-row:hover { border-color: var(--border-light); }
+.toggle-row-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: var(--border);
+  border-radius: 10px; transition: background var(--transition); cursor: pointer;
+}
+.toggle-slider::after {
+  content: ''; position: absolute; left: 3px; top: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform var(--transition), background var(--transition);
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); }
+.toggle input:checked + .toggle-slider::after { transform: translateX(16px); background: #fff; }
+
+/* =============================================
+   SIZE TIER
+============================================= */
+.tier-display {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-secondary);
+}
+.tier-badge {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  padding: 3px 8px; border-radius: 4px;
+  background: var(--accent-glow); border: 1px solid var(--accent-dim); color: var(--accent);
+}
+
+/* =============================================
+   INFO ICON
+============================================= */
+.info-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--border); color: var(--text-muted);
+  font-size: 9px; cursor: help; font-style: normal;
+  font-family: var(--font-mono); font-weight: 700; position: relative;
+}
+.info-icon:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-hover); border: 1px solid var(--border-light);
+  color: var(--text-secondary); font-family: var(--font-body);
+  font-size: 11px; font-weight: 400; padding: 5px 9px;
+  border-radius: var(--radius-sm); z-index: 200; pointer-events: none;
+  max-width: 220px; white-space: normal; text-align: center;
+}
+
+/* =============================================
+   BREAKDOWN
+============================================= */
+.breakdown {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.breakdown-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+}
+.breakdown-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-row:hover { background: rgba(255,255,255,0.02); }
+.breakdown-row-label {
+  font-size: 12px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 8px;
+}
+.breakdown-row-label .tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; padding: 2px 6px;
+  border-radius: 3px; background: var(--border); color: var(--text-muted);
+}
+.breakdown-row-value {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--text-primary);
+}
+.breakdown-row-value.neg { color: var(--red); }
+.breakdown-row-value.pos { color: var(--green); }
+.breakdown-row-value.acc { color: var(--accent); }
+.breakdown-total {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; background: rgba(0,217,126,0.04);
+  border-top: 1px solid var(--border);
+}
+.breakdown-total-label {
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+}
+.breakdown-total-value {
+  font-family: var(--font-mono); font-size: 20px; font-weight: 500; letter-spacing: -0.5px;
+}
+
+/* =============================================
+   COMPARISON
+============================================= */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare-col {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 16px; position: relative; overflow: hidden;
+}
+.compare-col::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--col-accent, var(--border));
+}
+.compare-col.fba { --col-accent: var(--accent); }
+.compare-col.fbm { --col-accent: var(--purple); }
+.compare-col-title {
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px;
+}
+.compare-col-profit {
+  font-family: var(--font-mono); font-size: 26px; font-weight: 500;
+  letter-spacing: -1px; line-height: 1; margin-bottom: 4px;
+}
+.compare-col-roi { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.winner-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 3px;
+  background: var(--green-dim); color: var(--green); border: 1px solid var(--green);
+  margin-top: 8px;
+}
+
+/* =============================================
+   ANIMATIONS
+============================================= */
+@keyframes pulse-update { 0%,100%{opacity:1} 30%{opacity:0.4} }
+.updating { animation: pulse-update 0.25s ease; }
+@keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.panel, .breakdown, .results-strip { animation: fadeInUp 0.5s ease both; }
+.results-strip { animation-delay: 0.05s; }
+.panel:nth-child(1) { animation-delay: 0.1s; }
+.panel:nth-child(2) { animation-delay: 0.15s; }
+.breakdown { animation-delay: 0.2s; }
+
+/* =============================================
+   FOOTER
+============================================= */
+.footer {
+  text-align: center; padding: 32px 24px;
+  color: var(--text-muted); font-size: 11px; letter-spacing: 0.5px;
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--border); margin-top: 40px;
+}
+.footer strong { color: var(--accent); }
+
+/* =============================================
+   SCROLLBAR
+============================================= */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* =============================================
+   PAYPAL.ME PAYMENT BUTTONS
+============================================= */
+.paypal-me-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 13px 16px;
+  background: #003087; color: #fff;
+  border: none; border-radius: var(--radius);
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  cursor: pointer; text-decoration: none;
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+  margin-top: 4px;
+}
+.paypal-me-btn:hover {
+  background: #001f5a; transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(0,48,135,0.45);
+}
+.paypal-me-btn.lifetime { background: #0070ba; }
+.paypal-me-btn.lifetime:hover { background: #005ea6; box-shadow: 0 6px 22px rgba(0,112,186,0.4); }
+.pp-wordmark {
+  font-size: 14px; font-style: italic; letter-spacing: -0.5px;
+  font-family: 'Times New Roman', serif; line-height: 1;
+}
+.pp-wordmark .pp-pay  { color: #009cde; }
+.pp-wordmark .pp-pal  { color: #fff; }
+
+/* Transaction ID entry — appears after clicking pay */
+.tx-panel {
+  display: none;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-top: 10px;
+}
+.tx-panel.open { display: block; animation: fadeInUp 0.25s ease both; }
+.tx-panel-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-secondary);
+  margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+}
+.tx-panel-title .step-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  font-size: 10px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tx-row { display: flex; gap: 8px; }
+.tx-input {
+  flex: 1; background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px; font-family: var(--font-mono);
+  font-size: 13px; color: var(--text-primary);
+  outline: none; letter-spacing: 0.5px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.tx-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.tx-input.tx-error { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-dim); animation: shake 0.4s ease; }
+.tx-input::placeholder { color: var(--text-muted); font-size: 11px; letter-spacing: 0; }
+.tx-go {
+  padding: 9px 14px; background: var(--accent); color: #000;
+  border: none; border-radius: var(--radius-sm);
+  font-family: var(--font-display); font-size: 12px; font-weight: 800;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background var(--transition), transform var(--transition);
+}
+.tx-go:hover { background: #ffb820; transform: translateY(-1px); }
+.tx-err-msg {
+  font-size: 11px; color: var(--red);
+  margin-top: 7px; display: none; line-height: 1.5;
+}
+.tx-err-msg.show { display: block; }
+.tx-hint {
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 8px; line-height: 1.6;
+}
+.tx-hint strong { color: var(--text-secondary); }
+
+/* Trust row under both plans */
+.trust-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 18px; margin-top: 16px;
+  padding-top: 14px; border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.trust-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     OVERLAY 1: AUTH GATE (Login/Signup)
+============================================================ -->
+<div id="authGate" class="overlay" style="display:flex;">
+  <div class="gate-card">
+    <div class="gate-logo">
+      <div class="logo-box">📦</div>
+      <div class="logo-text"><span>Profit</span>Lens</div>
+    </div>
+    
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="loginTab" onclick="switchAuthTab('login')">Login</button>
+      <button class="auth-tab" id="signupTab" onclick="switchAuthTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="auth-form">
+      <h2 class="gate-heading">Welcome Back</h2>
+      <p class="gate-sub">Login to access your free analyses</p>
+      
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" class="auth-input" placeholder="your@email.com" />
+      </div>
+      
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" class="auth-input" placeholder="••••••••" />
+      </div>
+      
+      <div class="auth-error" id="loginError"></div>
+      
+      <button class="btn btn-accent" onclick="handleLogin()">
+        🔓 Login
+      </button>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" class="auth-form" style="display:none;">
+      <h2 class="gate-heading">Create Account</h2>
+      <p class="gate-sub">Get <strong>5 free analyses</strong> to start</p>
+      
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="signupEmail" class="auth-input" placeholder="your@email.com" />
+      </div>
+      
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="signupPassword" class="auth-input" placeholder="••••••••" />
+      </div>
+      
+      <div class="auth-field">
+        <label>Confirm Password</label>
+        <input type="password" id="signupConfirm" class="auth-input" placeholder="••••••••" />
+      </div>
+      
+      <div class="auth-error" id="signupError"></div>
+      <div class="auth-success" id="signupSuccess"></div>
+      
+      <button class="btn btn-accent" onclick="handleSignup()">
+        ✨ Create Account
+      </button>
+    </div>
+
+    <div class="gate-divider"></div>
+    <div class="gate-footer">
+      <strong>ProfitLens</strong> — Track your analyses across devices
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     OVERLAY 2: LICENSE GATE (premium returning users)
+============================================================ -->
+<div id="licenseGate" class="overlay" style="display:none;">
+  <div class="gate-card">
+    <div class="gate-logo">
+      <div class="logo-box">📦</div>
+      <div class="logo-text"><span>Profit</span>Lens</div>
+    </div>
+    <h2 class="gate-heading">Enter Your License Key</h2>
+    <p class="gate-sub">
+      Welcome back! Enter your <strong>license key</strong> to restore
+      full premium access. Keys were sent after purchase.
+    </p>
+    <div id="gateUnlockForm">
+      <input type="text" id="licenseInput" placeholder="e.g.  PRM-A3F-8B2K"
+        maxlength="24" autocomplete="off" spellcheck="false" />
+      <button class="btn btn-accent" id="verifyBtn" onclick="verifyKey()">
+        🔓 Verify Key
+      </button>
+      <div class="gate-msg" id="gateMsg"></div>
+      <div class="gate-attempts" id="attemptsDisplay">
+        <div class="attempt-dot" id="dot1"></div>
+        <div class="attempt-dot" id="dot2"></div>
+        <div class="attempt-dot" id="dot3"></div>
+        <div class="attempt-dot" id="dot4"></div>
+        <div class="attempt-dot" id="dot5"></div>
+      </div>
+    </div>
+    <div class="gate-divider"></div>
+    <div class="gate-footer">
+      Don't have a key? <button class="gate-link" onclick="showUpgradeWall()">Get Premium Access →</button>
+      <br/><br/>
+      <button class="gate-link" onclick="showAuthGate()">← Back to Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     OVERLAY 3: UPGRADE WALL / PAYWALL
+============================================================ -->
+<div id="upgradeWall" class="overlay" style="display:none;">
+  <div class="upgrade-card">
+    <div class="upgrade-header">
+      <span class="emoji">🚀</span>
+      <h2>Unlock Unlimited Access</h2>
+      <p>
+        You've used all <strong>5 free analyses</strong>. Choose your plan
+        to keep calculating profit on unlimited Amazon products.
+      </p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- FOUNDING MEMBER PLAN -->
+      <div class="plan-card featured">
+        <div class="plan-badge limited">⚡ First 10 Only</div>
+        <div class="plan-name">Founding Member</div>
+        <div class="plan-price">$99<span></span></div>
+        <div class="plan-cycle">One-time · Lifetime access</div>
+        <ul class="plan-features">
+          <li>Unlimited product analyses</li>
+          <li>All future feature updates</li>
+          <li>Priority support</li>
+          <li>Founding member badge</li>
+          <li>Lock in price forever</li>
+        </ul>
+        <!-- PayPal.me pay button -->
+        <a id="payLifetimeBtn"
+           href="https://www.paypal.me/YOUR_PAYPAL_ME/99"
+           target="_blank" rel="noopener"
+           class="paypal-me-btn lifetime"
+           onclick="openTxPanel('lifetime')">
+          <span class="pp-wordmark"><span class="pp-pay">Pay</span><span class="pp-pal">Pal</span>.me</span>
+          Pay $99 — Lifetime Access
+        </a>
+
+        <!-- Step 2: enter Transaction ID after paying -->
+        <div class="tx-panel" id="tx-panel-lifetime">
+          <div class="tx-panel-title">
+            <span class="step-dot">2</span>
+            Paste your PayPal Transaction ID
+          </div>
+          <div class="tx-row">
+            <input type="text" class="tx-input" id="txid-lifetime"
+              placeholder="e.g. 5TY05013RG057141H" maxlength="40"
+              autocomplete="off" spellcheck="false" />
+            <button class="tx-go" onclick="redeemTx('lifetime')">Get Key →</button>
+          </div>
+          <div class="tx-err-msg" id="txerr-lifetime"></div>
+          <div class="tx-hint">
+            <strong>Where to find it:</strong> Check your PayPal confirmation
+            email — it's the 17-character code (letters &amp; numbers) near the
+            top, labelled "Transaction ID".
+          </div>
+        </div>
+      </div>
+
+      <!-- STANDARD MONTHLY PLAN -->
+      <div class="plan-card">
+        <div class="plan-badge standard">Standard</div>
+        <div class="plan-name">Monthly Access</div>
+        <div class="plan-price">$19<span>/mo</span></div>
+        <div class="plan-cycle">Billed monthly · Cancel anytime</div>
+        <ul class="plan-features">
+          <li>Unlimited product analyses</li>
+          <li>All current features</li>
+          <li>Email support</li>
+          <li>Auto-renews monthly</li>
+        </ul>
+        <!-- PayPal.me pay button -->
+        <a id="payMonthlyBtn"
+           href="https://www.paypal.me/YOUR_PAYPAL_ME/19"
+           target="_blank" rel="noopener"
+           class="paypal-me-btn"
+           onclick="openTxPanel('monthly')">
+          <span class="pp-wordmark"><span class="pp-pay">Pay</span><span class="pp-pal">Pal</span>.me</span>
+          Pay $19 / month
+        </a>
+
+        <!-- Step 2: enter Transaction ID after paying -->
+        <div class="tx-panel" id="tx-panel-monthly">
+          <div class="tx-panel-title">
+            <span class="step-dot">2</span>
+            Paste your PayPal Transaction ID
+          </div>
+          <div class="tx-row">
+            <input type="text" class="tx-input" id="txid-monthly"
+              placeholder="e.g. 5TY05013RG057141H" maxlength="40"
+              autocomplete="off" spellcheck="false" />
+            <button class="tx-go" onclick="redeemTx('monthly')">Get Key →</button>
+          </div>
+          <div class="tx-err-msg" id="txerr-monthly"></div>
+          <div class="tx-hint">
+            <strong>Where to find it:</strong> Check your PayPal confirmation
+            email — it's the 17-character code (letters &amp; numbers) near the
+            top, labelled "Transaction ID".
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trust signals -->
+    <div class="trust-row">
+      <div class="trust-item">🔒 Secured by PayPal</div>
+      <div class="trust-item">⚡ Instant key delivery</div>
+      <div class="trust-item">🔑 No account needed</div>
+    </div>
+
+    <div class="upgrade-divider">or</div>
+    <div class="upgrade-actions">
+      <button class="btn btn-outline" style="max-width:300px;" onclick="showLicenseGateFromUpgrade()">
+        🔑 I Already Have a License Key
+      </button>
+      <button class="gate-link" onclick="resumeFreeTrial()" id="resumeFreeLink">
+        ← Go Back (no free analyses left)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     OVERLAY 4: PAYMENT SUCCESS
+============================================================ -->
+<div id="paymentSuccess" class="overlay" style="display:none;">
+  <div class="success-card">
+    <span class="success-icon">🎉</span>
+    <div class="success-heading">Payment Successful!</div>
+    <p class="success-sub">
+      Your ProfitLens license key has been generated.
+      <strong>Save this key — it's your permanent access code.</strong>
+    </p>
+
+    <div class="key-display-wrap">
+      <div class="key-display-label">Your License Key</div>
+      <div class="key-display-value" id="generatedKeyDisplay">PRM-XXX-XXXX</div>
+      <button class="key-copy-btn" onclick="copyKey()">Copy</button>
+    </div>
+
+    <div class="key-warning">
+      ⚠️ <strong>Important:</strong> This key is tied to your PayPal transaction.
+      Save it somewhere safe — you'll need it to log in from any other device or browser.
+    </div>
+
+    <button class="btn btn-green" onclick="activateGeneratedKey()">
+      ✓ Access Calculator Now
+    </button>
+
+    <div style="margin-top:14px;font-size:11px;color:var(--text-muted);text-align:center;line-height:1.7;">
+      A copy of this key has been auto-saved in this browser.<br/>
+      Check your PayPal email for your transaction reference.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     FREE TRIAL BANNER
+============================================================ -->
+<div id="freeTrialBanner" style="display:none;">
+  <div class="trial-info">
+    <div class="trial-pips" id="trialPips"></div>
+    <div class="trial-text">
+      <strong id="trialCountText">5</strong> free analyses remaining
+    </div>
+  </div>
+  <div class="trial-cta" onclick="showUpgradeWall()">
+    ⬆ Upgrade to Pro
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">📦</div>
+    <span>Profit</span>Lens
+  </div>
+  <div class="header-right">
+    <div id="headerBadge" class="founding-badge">Founding Member</div>
+    <div id="userMenu" class="user-menu" style="display:none;">
+      <span class="user-email" id="userEmail"></span>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    </div>
+    <button id="headerUpgradeBtn" class="upgrade-btn-sm" onclick="showUpgradeWall()" style="display:none;">
+      ⬆ Upgrade
+    </button>
+    <button id="headerAuthBtn" class="auth-btn-sm" onclick="showAuthGate()" style="display:none;">
+      Login / Sign Up
+    </button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+  <p class="page-title">Amazon Seller Tools</p>
+  <h1 class="page-headline">FBA Profit <span>Calculator</span></h1>
+
+  <!-- RESULTS STRIP -->
+  <div style="position:relative;">
+    <div class="results-strip" id="resultsStrip">
+      <div class="result-card profit">
+        <div class="result-card-label"><span class="dot"></span>FBA Net Profit</div>
+        <div class="result-card-value val-positive" id="r-fba-profit">$0.00</div>
+        <div class="result-card-sub" id="r-fba-margin">Margin: 0.0%</div>
+      </div>
+      <div class="result-card roi">
+        <div class="result-card-label"><span class="dot"></span>FBA ROI</div>
+        <div class="result-card-value val-blue" id="r-fba-roi">0.0%</div>
+        <div class="result-card-sub" id="r-fba-roi-sub">On COGS</div>
+      </div>
+      <div class="result-card breakeven">
+        <div class="result-card-label"><span class="dot"></span>Break-Even Price</div>
+        <div class="result-card-value val-neutral" id="r-breakeven">$0.00</div>
+        <div class="result-card-sub" id="r-breakeven-sub">Min sell price</div>
+      </div>
+      <div class="result-card fbm">
+        <div class="result-card-label"><span class="dot"></span>FBM Net Profit</div>
+        <div class="result-card-value" id="r-fbm-profit" style="color:var(--purple)">$0.00</div>
+        <div class="result-card-sub" id="r-fbm-margin">Margin: 0.0%</div>
+      </div>
+    </div>
+
+    <!-- Analyze button (free users) -->
+    <div id="analyzeBtn" class="analyzeBtn">
+      <div class="analyze-inner">
+        <div class="analyze-count">
+          <strong id="analysesLeft">5</strong> free analyses remaining — click to reveal results
+        </div>
+        <button class="btn btn-accent" style="max-width:280px;margin:0 auto;" onclick="runFreeAnalysis()">
+          📊 Analyze This Product
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT GRID -->
+  <div class="content-grid">
+    <!-- LEFT: Product + FBM -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">🏷️</span> Product Details</div>
+        </div>
+        <div class="panel-body">
+          <div class="field-group">
+            <div class="field">
+              <label>Selling Price <i class="info-icon" data-tip="Your listed price on Amazon">?</i></label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="sellingPrice" class="has-prefix" value="29.99" step="0.01" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>COGS / Unit Cost <i class="info-icon" data-tip="Your cost of goods per unit">?</i></label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="cogs" class="has-prefix" value="8.00" step="0.01" min="0" />
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select id="category">
+              <option value="0.15">General (15%)</option>
+              <option value="0.08">Books (8%)</option>
+              <option value="0.15">Electronics (15%)</option>
+              <option value="0.15">Clothing &amp; Accessories (15%)</option>
+              <option value="0.17">Jewelry (17%)</option>
+              <option value="0.15">Home &amp; Garden (15%)</option>
+              <option value="0.15">Sports &amp; Outdoors (15%)</option>
+              <option value="0.06">Personal Computers (6%)</option>
+              <option value="0.45">Amazon Device Accessories (45%)</option>
+              <option value="0.12">Baby Products (12%)</option>
+              <option value="0.15">Beauty (15%)</option>
+              <option value="0.15">Toys &amp; Games (15%)</option>
+              <option value="custom">Custom Rate…</option>
+            </select>
+          </div>
+          <div class="field" id="customRefField" style="display:none">
+            <label>Custom Referral %</label>
+            <div class="input-wrap">
+              <input type="number" id="customRef" class="has-suffix" value="15" step="0.1" min="0" max="100" />
+              <span class="input-suffix">%</span>
+            </div>
+          </div>
+          <div class="section-divider">Dimensions &amp; Weight</div>
+          <div class="field-group">
+            <div class="field">
+              <label>Weight (lbs)</label>
+              <input type="number" id="weight" value="0.8" step="0.01" min="0" />
+            </div>
+            <div class="field">
+              <label>Longest Side (in)</label>
+              <input type="number" id="dimL" value="10" step="0.1" min="0" />
+            </div>
+            <div class="field">
+              <label>Median Side (in)</label>
+              <input type="number" id="dimM" value="7" step="0.1" min="0" />
+            </div>
+            <div class="field">
+              <label>Shortest Side (in)</label>
+              <input type="number" id="dimS" value="1" step="0.1" min="0" />
+            </div>
+          </div>
+          <div class="tier-display">
+            <span style="color:var(--text-muted);font-size:11px;">Size Tier:</span>
+            <span class="tier-badge" id="sizeTierBadge">Large Standard</span>
+            <span style="color:var(--text-muted);font-size:11px;" id="sizeTierDesc"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">🚚</span> FBM (Your Own Fulfillment)</div>
+        </div>
+        <div class="panel-body">
+          <div class="field-group">
+            <div class="field">
+              <label>Your Shipping Cost <i class="info-icon" data-tip="Cost you pay to ship 1 unit to buyer">?</i></label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="fbmShipping" class="has-prefix" value="4.50" step="0.01" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Packaging Cost</label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="fbmPackaging" class="has-prefix" value="0.50" step="0.01" min="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: FBA Fees + Hidden Costs -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">💰</span> FBA Fees &amp; Storage</div>
+        </div>
+        <div class="panel-body">
+          <div class="field-group">
+            <div class="field">
+              <label>Monthly Units Sold <i class="info-icon" data-tip="Used to prorate storage fee per unit">?</i></label>
+              <input type="number" id="monthlyUnits" value="50" step="1" min="1" />
+            </div>
+            <div class="field">
+              <label>Avg. Storage (months)</label>
+              <input type="number" id="storageDuration" value="2" step="0.5" min="0" max="12" />
+            </div>
+          </div>
+          <label class="toggle-row" for="peakStorage">
+            <span class="toggle-row-label">🍂 Peak Season Storage (Oct–Dec) <i class="info-icon" data-tip="Oct–Dec rates are ~2.4× standard">?</i></span>
+            <label class="toggle"><input type="checkbox" id="peakStorage" /><span class="toggle-slider"></span></label>
+          </label>
+          <div class="field">
+            <label>Inbound Shipping / Unit <i class="info-icon" data-tip="Your cost to ship inventory to FBA warehouse">?</i></label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="inboundShipping" class="has-prefix" value="0.50" step="0.01" min="0" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Prep &amp; Labelling / Unit</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="prepCost" class="has-prefix" value="0.25" step="0.01" min="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">🕵️</span> Hidden Cost Suite</div>
+        </div>
+        <div class="panel-body">
+          <div class="slider-wrap">
+            <div class="slider-header">
+              <label>PPC Ad Spend / Unit <i class="info-icon" data-tip="Total ad spend ÷ total units sold">?</i></label>
+              <span class="slider-value" id="ppcVal">$1.50</span>
+            </div>
+            <input type="range" id="ppcSlider" min="0" max="10" step="0.10" value="1.50" />
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);"><span>$0</span><span>$10</span></div>
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-header">
+              <label>Return Rate <i class="info-icon" data-tip="% of units returned. Deducts return fee + COGS loss">?</i></label>
+              <span class="slider-value" id="returnVal">5%</span>
+            </div>
+            <input type="range" id="returnSlider" min="0" max="50" step="1" value="5" />
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);"><span>0%</span><span>50%</span></div>
+          </div>
+          <div class="section-divider">Tax Settings</div>
+          <label class="toggle-row" for="vatToggle">
+            <span class="toggle-row-label">🇬🇧 UK VAT (20%) <i class="info-icon" data-tip="Reduces effective revenue by 20% (VAT-inclusive)">?</i></span>
+            <label class="toggle"><input type="checkbox" id="vatToggle" /><span class="toggle-slider"></span></label>
+          </label>
+          <label class="toggle-row" for="salesTaxToggle">
+            <span class="toggle-row-label">🇺🇸 US Sales Tax (est. 8%) <i class="info-icon" data-tip="Estimates your state nexus impact on margins">?</i></span>
+            <label class="toggle"><input type="checkbox" id="salesTaxToggle" /><span class="toggle-slider"></span></label>
+          </label>
+          <div class="field">
+            <label>Income Tax Rate <span class="hint">(% on profit)</span></label>
+            <div class="input-wrap">
+              <input type="number" id="incomeTax" class="has-suffix" value="0" step="1" min="0" max="60" />
+              <span class="input-suffix">%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Other Costs / Unit <span class="hint">(photography, VA, etc)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="miscCost" class="has-prefix" value="0" step="0.01" min="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COST BREAKDOWN -->
+  <div style="margin-top:16px;">
+    <div class="breakdown">
+      <div class="breakdown-header">📊 &nbsp;Full Cost Breakdown — FBA vs FBM</div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Revenue</span>Selling Price (net of tax)</span>
+        <span class="breakdown-row-value pos" id="b-revenue">$29.99</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">COGS</span>Cost of Goods</span>
+        <span class="breakdown-row-value neg" id="b-cogs">–$8.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Fee</span>Amazon Referral Fee</span>
+        <span class="breakdown-row-value neg" id="b-referral">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">FBA</span>FBA Fulfillment Fee</span>
+        <span class="breakdown-row-value neg" id="b-fba">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Storage</span>Monthly Storage (per unit)</span>
+        <span class="breakdown-row-value neg" id="b-storage">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Inbound</span>Inbound Shipping</span>
+        <span class="breakdown-row-value neg" id="b-inbound">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Prep</span>Prep &amp; Labelling</span>
+        <span class="breakdown-row-value neg" id="b-prep">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">PPC</span>Ad Spend / Unit</span>
+        <span class="breakdown-row-value neg" id="b-ppc">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Returns</span>Returns Impact</span>
+        <span class="breakdown-row-value neg" id="b-returns">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Tax</span>Tax Impact</span>
+        <span class="breakdown-row-value neg" id="b-tax">–$0.00</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-row-label"><span class="tag">Misc</span>Other Costs</span>
+        <span class="breakdown-row-value neg" id="b-misc">–$0.00</span>
+      </div>
+      <div class="breakdown-row" style="background:rgba(240,165,0,0.03)">
+        <span class="breakdown-row-label" style="font-weight:600;color:var(--text-primary)">FBM Fulfillment Cost</span>
+        <span class="breakdown-row-value neg" id="b-fbm-shipping">–$0.00</span>
+      </div>
+      <div class="breakdown-total" style="border-top:2px solid var(--border);">
+        <div>
+          <div class="breakdown-total-label">FBA Net Profit / Unit</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="b-fba-margin-text">Margin · ROI</div>
+        </div>
+        <div class="breakdown-total-value" id="b-fba-total" style="color:var(--green)">$0.00</div>
+      </div>
+      <div class="breakdown-total">
+        <div>
+          <div class="breakdown-total-label" style="color:var(--purple)">FBM Net Profit / Unit</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="b-fbm-margin-text">Margin · ROI</div>
+        </div>
+        <div class="breakdown-total-value" id="b-fbm-total" style="color:var(--purple)">$0.00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARISON -->
+  <div style="margin-top:16px;">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">⚖️</span> FBA vs FBM Comparison</div>
+      </div>
+      <div class="panel-body">
+        <div class="compare-grid">
+          <div class="compare-col fba">
+            <div class="compare-col-title">☁️ FBA</div>
+            <div class="compare-col-profit" id="c-fba-profit">$0.00</div>
+            <div class="compare-col-roi" id="c-fba-roi">ROI: 0.0% · Margin: 0.0%</div>
+            <div id="c-fba-winner"></div>
+          </div>
+          <div class="compare-col fbm">
+            <div class="compare-col-title">📦 FBM</div>
+            <div class="compare-col-profit" id="c-fbm-profit">$0.00</div>
+            <div class="compare-col-roi" id="c-fbm-roi">ROI: 0.0% · Margin: 0.0%</div>
+            <div id="c-fbm-winner"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary);line-height:1.6;" id="c-recommendation">
+          Enter product details to see recommendation…
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <strong>ProfitLens</strong> — Calculations are estimates. Amazon fees subject to change. &nbsp;·&nbsp; Built for serious sellers 🚀
+</footer>
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+<script>
+/* ================================================================
+   SECTION 1 — CONSTANTS & STORAGE KEYS
+================================================================ */
+const LS_LICENSE      = 'pl_license_ok';       // hash of valid premium key
+const LS_ATTEMPTS     = 'pl_attempts';
+const LS_LOCKOUT      = 'pl_lockout_until';
+const LS_USER         = 'pl_user';              // current user session
+const LS_USERS        = 'pl_users';             // all registered users
+const LS_FREE_COUNT   = 'pl_free_count_';       // per user free count (suffix with email)
+const MAX_FREE        = 5;
+const MAX_ATTEMPTS    = 5;
+const LOCKOUT_MS      = 30 * 60 * 1000;
+
+/* ================================================================
+   SECTION 2 — FOUNDING MEMBER LICENSE KEYS
+================================================================ */
+const FOUNDING_KEYS = [
+  'AMZ-70-X92', 'PLF-44-K37', 'FBA-91-M55',
+  'ROI-28-Z84', 'SKU-63-T19', 'PPC-57-W30',
+  'NET-82-D46', 'BEP-15-Q71', 'SLR-39-H08', 'MGN-66-V22'
+];
+
+const KEYGEN_SALT = 'pl_v1_secret_2024_change_me';
+
+/* ================================================================
+   SECTION 3 — HASH UTILITY (FNV-1a 32-bit)
+================================================================ */
+function fnv32(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0').toUpperCase();
+}
+
+/* Pre-hash founding member keys */
+const FOUNDING_HASHES = FOUNDING_KEYS.map(k => fnv32(k.toUpperCase()));
+
+/* Generate a license key from a PayPal order/subscription ID */
+function generateLicenseKey(paypalId) {
+  const raw  = fnv32(paypalId + KEYGEN_SALT);
+  const a    = raw.slice(0, 3);
+  const b    = raw.slice(3, 6);
+  const c    = raw.slice(6, 8);
+  return 'PRM-' + a + '-' + b + c;
+}
+
+/* Check if a key is valid (founding member or generated) */
+function isValidKey(inputKey) {
+  const upper = inputKey.toUpperCase().trim();
+  const hash  = fnv32(upper);
+
+  // Check founding member keys
+  if (FOUNDING_HASHES.includes(hash)) return true;
+
+  // Check locally-stored generated keys
+  const stored = getGeneratedKeyHashes();
+  return stored.includes(hash);
+}
+
+function getGeneratedKeyHashes() {
+  try { return JSON.parse(localStorage.getItem(LS_GEN_KEYS) || '[]'); }
+  catch(e) { return []; }
+}
+
+function storeGeneratedKey(key) {
+  const hashes = getGeneratedKeyHashes();
+  const h = fnv32(key.toUpperCase());
+  if (!hashes.includes(h)) { hashes.push(h); localStorage.setItem(LS_GEN_KEYS, JSON.stringify(hashes)); }
+}
+
+/* ================================================================
+   SECTION 4 — USER AUTHENTICATION
+================================================================ */
+let currentUser = null;
+let isPremium = false;
+let freeCount = 0;
+let pendingKey = '';
+
+function initUsers() {
+  if (!localStorage.getItem(LS_USERS)) {
+    localStorage.setItem(LS_USERS, JSON.stringify({}));
+  }
+}
+
+function getUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_USERS) || '{}');
+  } catch(e) {
+    return {};
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(LS_USERS, JSON.stringify(users));
+}
+
+function hashPassword(password) {
+  return fnv32(password + '_salt_profitlens');
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  return password.length >= 6;
+}
+
+function handleSignup() {
+  const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+  const password = document.getElementById('signupPassword').value;
+  const confirm = document.getElementById('signupConfirm').value;
+  const errorEl = document.getElementById('signupError');
+  const successEl = document.getElementById('signupSuccess');
+  
+  errorEl.textContent = '';
+  successEl.textContent = '';
+  
+  if (!email || !password || !confirm) {
+    errorEl.textContent = 'All fields are required';
+    return;
+  }
+  
+  if (!validateEmail(email)) {
+    errorEl.textContent = 'Please enter a valid email';
+    return;
+  }
+  
+  if (!validatePassword(password)) {
+    errorEl.textContent = 'Password must be at least 6 characters';
+    return;
+  }
+  
+  if (password !== confirm) {
+    errorEl.textContent = 'Passwords do not match';
+    return;
+  }
+  
+  const users = getUsers();
+  
+  if (users[email]) {
+    errorEl.textContent = 'Email already registered. Please login.';
+    return;
+  }
+  
+  // Create new user
+  users[email] = {
+    password: hashPassword(password),
+    createdAt: Date.now(),
+    premium: false
+  };
+  
+  saveUsers(users);
+  
+  successEl.textContent = 'Account created! You can now login.';
+  
+  // Clear form
+  document.getElementById('signupEmail').value = '';
+  document.getElementById('signupPassword').value = '';
+  document.getElementById('signupConfirm').value = '';
+  
+  // Switch to login after 2 seconds
+  setTimeout(() => {
+    switchAuthTab('login');
+  }, 2000);
+}
+
+function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+  
+  errorEl.textContent = '';
+  
+  if (!email || !password) {
+    errorEl.textContent = 'Email and password are required';
+    return;
+  }
+  
+  const users = getUsers();
+  const user = users[email];
+  
+  if (!user || user.password !== hashPassword(password)) {
+    errorEl.textContent = 'Invalid email or password';
+    return;
+  }
+  
+  // Login successful
+  currentUser = email;
+  localStorage.setItem(LS_USER, email);
+  
+  // Get user's free count
+  const freeCountKey = LS_FREE_COUNT + email;
+  freeCount = parseInt(localStorage.getItem(freeCountKey) || '0');
+  
+  // Hide auth gate
+  document.getElementById('authGate').style.display = 'none';
+  
+  // Update UI
+  updateHeaderForUser();
+  
+  // Start app
+  initAccessControl();
+}
+
+function handleLogout() {
+  currentUser = null;
+  localStorage.removeItem(LS_USER);
+  
+  // Show auth gate
+  document.getElementById('authGate').style.display = 'flex';
+  document.getElementById('licenseGate').style.display = 'none';
+  document.getElementById('upgradeWall').style.display = 'none';
+  document.getElementById('freeTrialBanner').style.display = 'none';
+  
+  // Reset UI
+  document.getElementById('userMenu').style.display = 'none';
+  document.getElementById('headerAuthBtn').style.display = 'block';
+  document.getElementById('headerBadge').style.display = 'none';
+  document.getElementById('headerUpgradeBtn').style.display = 'none';
+  
+  // Reset forms
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+function updateHeaderForUser() {
+  if (currentUser) {
+    document.getElementById('userMenu').style.display = 'flex';
+    document.getElementById('userEmail').textContent = currentUser;
+    document.getElementById('headerAuthBtn').style.display = 'none';
+  } else {
+    document.getElementById('userMenu').style.display = 'none';
+    document.getElementById('headerAuthBtn').style.display = 'block';
+  }
+}
+
+function checkExistingSession() {
+  const savedUser = localStorage.getItem(LS_USER);
+  if (savedUser) {
+    const users = getUsers();
+    if (users[savedUser]) {
+      currentUser = savedUser;
+      freeCount = parseInt(localStorage.getItem(LS_FREE_COUNT + savedUser) || '0');
+      document.getElementById('authGate').style.display = 'none';
+      updateHeaderForUser();
+      return true;
+    } else {
+      localStorage.removeItem(LS_USER);
+    }
+  }
+  return false;
+}
+
+function switchAuthTab(tab) {
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+  const loginTab = document.getElementById('loginTab');
+  const signupTab = document.getElementById('signupTab');
+  
+  if (tab === 'login') {
+    loginForm.style.display = 'block';
+    signupForm.style.display = 'none';
+    loginTab.classList.add('active');
+    signupTab.classList.remove('active');
+  } else {
+    loginForm.style.display = 'none';
+    signupForm.style.display = 'block';
+    loginTab.classList.remove('active');
+    signupTab.classList.add('active');
+  }
+}
+
+function showAuthGate() {
+  document.getElementById('authGate').style.display = 'flex';
+  document.getElementById('licenseGate').style.display = 'none';
+  document.getElementById('upgradeWall').style.display = 'none';
+  document.getElementById('paymentSuccess').style.display = 'none';
+}
+
+/* ================================================================
+   SECTION 5 — APP STATE & ACCESS CONTROL
+================================================================ */
+function getFreeCount() {
+  if (!currentUser) return 0;
+  return parseInt(localStorage.getItem(LS_FREE_COUNT + currentUser) || '0');
+}
+
+function incrementFreeCount() {
+  if (!currentUser) return;
+  const newCount = getFreeCount() + 1;
+  localStorage.setItem(LS_FREE_COUNT + currentUser, newCount);
+  freeCount = newCount;
+}
+
+function getAttempts()   { return parseInt(localStorage.getItem(LS_ATTEMPTS)   || '0'); }
+function getLockout()    { return parseInt(localStorage.getItem(LS_LOCKOUT)    || '0'); }
+function isLockedOut()   { return Date.now() < getLockout(); }
+
+function initAccessControl() {
+  // 1. Check for existing premium license
+  const savedHash = localStorage.getItem(LS_LICENSE);
+  if (savedHash) {
+    const allHashes = [...FOUNDING_HASHES, ...getGeneratedKeyHashes()];
+    if (allHashes.includes(savedHash)) {
+      activatePremium(false);
+      return;
+    }
+  }
+
+  // 2. Free tier — check usage
+  freeCount = getFreeCount();
+
+  if (freeCount < MAX_FREE) {
+    activateFreeTier();
+  } else {
+    // Free uses exhausted — show upgrade wall
+    showUpgradeWall();
+  }
+}
+
+function activatePremium(animate) {
+  isPremium = true;
+
+  // Hide all overlays
+  ['authGate', 'licenseGate', 'upgradeWall', 'paymentSuccess', 'freeTrialBanner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (animate) {
+        el.classList.add('hidden');
+        el.addEventListener('animationend', () => el.style.display = 'none', { once: true });
+      } else {
+        el.style.display = 'none';
+      }
+    }
+  });
+
+  // Show premium badge, hide upgrade button
+  document.getElementById('headerBadge').style.display = 'flex';
+  document.getElementById('headerUpgradeBtn').style.display = 'none';
+  document.getElementById('userMenu').style.display = 'flex';
+
+  // Remove analyze button, enable live updates
+  const ab = document.getElementById('analyzeBtn');
+  if (ab) ab.style.display = 'none';
+
+  render();
+}
+
+function activateFreeTier() {
+  isPremium = false;
+  const remaining = MAX_FREE - freeCount;
+
+  // Show trial banner
+  const banner = document.getElementById('freeTrialBanner');
+  banner.style.display = 'flex';
+
+  // Build pips
+  const pipsEl = document.getElementById('trialPips');
+  pipsEl.innerHTML = '';
+  for (let i = 0; i < MAX_FREE; i++) {
+    const pip = document.createElement('div');
+    pip.className = 'trial-pip' + (i < freeCount ? ' used' : ' active');
+    pipsEl.appendChild(pip);
+  }
+  document.getElementById('trialCountText').textContent = remaining;
+
+  // Show analyze button, hide live results strip (show blurred placeholder)
+  document.getElementById('analyzeBtn').style.display = 'block';
+  document.getElementById('analysesLeft').textContent = remaining;
+
+  // Premium header shows upgrade button
+  document.getElementById('headerBadge').style.display = 'none';
+  document.getElementById('headerUpgradeBtn').style.display = 'block';
+
+  // Run a silent render so values are ready
+  render();
+}
+
+/* ================================================================
+   SECTION 6 — FREE TIER: ANALYZE BUTTON
+================================================================ */
+function runFreeAnalysis() {
+  if (!currentUser) {
+    showAuthGate();
+    return;
+  }
+  
+  freeCount = getFreeCount();
+
+  if (freeCount >= MAX_FREE) {
+    showUpgradeWall();
+    return;
+  }
+
+  // Increment counter
+  incrementFreeCount();
+
+  // Re-render and flash results
+  render();
+
+  // Update UI
+  const remaining = MAX_FREE - freeCount;
+  document.getElementById('analysesLeft').textContent = remaining;
+  document.getElementById('trialCountText').textContent = remaining;
+
+  // Update pips
+  const pips = document.querySelectorAll('.trial-pip');
+  pips.forEach((p, i) => {
+    p.className = 'trial-pip' + (i < freeCount ? ' used' : ' active');
+  });
+
+  // Briefly show results, then dim again after a moment
+  const strip = document.getElementById('resultsStrip');
+  strip.style.opacity = '1';
+  strip.style.filter  = 'none';
+
+  // If this was the last free use, show upgrade wall after a pause
+  if (freeCount >= MAX_FREE) {
+    document.getElementById('analyzeBtn').innerHTML =
+      '<div class="analyze-inner"><div class="analyze-count" style="color:var(--red)">Free analyses exhausted</div>' +
+      '<button class="btn btn-accent" style="max-width:280px;margin:0 auto;" onclick="showUpgradeWall()">⬆ Upgrade to Continue</button></div>';
+    setTimeout(showUpgradeWall, 3000);
+  }
+}
+
+function resumeFreeTrial() {
+  document.getElementById('upgradeWall').classList.add('hidden');
+  document.getElementById('upgradeWall').addEventListener('animationend', function() {
+    this.style.display = 'none';
+  }, { once: true });
+}
+
+/* ================================================================
+   SECTION 7 — OVERLAY CONTROLS
+================================================================ */
+function showUpgradeWall() {
+  const wall = document.getElementById('upgradeWall');
+  wall.style.display = 'flex';
+  wall.classList.remove('hidden');
+
+  // Hide other overlays
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('licenseGate').style.display = 'none';
+
+  // Update "go back" link
+  const resumeLink = document.getElementById('resumeFreeLink');
+  const remaining  = currentUser ? MAX_FREE - getFreeCount() : 0;
+  resumeLink.textContent = remaining > 0
+    ? '← Go Back (' + remaining + ' free ' + (remaining === 1 ? 'analysis' : 'analyses') + ' left)'
+    : '← Close (free trial ended)';
+  resumeLink.onclick = resumeFreeTrial;
+}
+
+function showLicenseGateFromUpgrade() {
+  document.getElementById('upgradeWall').style.display = 'none';
+  const gate = document.getElementById('licenseGate');
+  gate.style.display = 'flex';
+  gate.classList.remove('hidden');
+
+  // Restore attempt dots
+  const attempts = getAttempts();
+  for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
+    const dot = document.getElementById('dot' + i);
+    if (dot) dot.classList.add('used');
+  }
+  if (isLockedOut()) showLockScreen();
+
+  // Wire Enter key
+  const inp = document.getElementById('licenseInput');
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey(); }, { once: true });
+}
+
+/* ================================================================
+   SECTION 8 — LICENSE KEY GATE LOGIC
+================================================================ */
+function verifyKey() {
+  if (isLockedOut()) { showLockScreen(); return; }
+
+  const inp   = document.getElementById('licenseInput');
+  const raw   = (inp.value || '').trim().toUpperCase();
+
+  if (!raw) { showGateMsg('Please enter your key.', 'error'); return; }
+
+  if (isValidKey(raw)) {
+    // SUCCESS
+    const hash = fnv32(raw);
+    localStorage.setItem(LS_LICENSE, hash);
+    localStorage.removeItem(LS_ATTEMPTS);
+    localStorage.removeItem(LS_LOCKOUT);
+
+    inp.classList.add('valid');
+    showGateMsg('✓ Access granted — welcome!', 'success');
+    document.getElementById('verifyBtn').disabled = true;
+
+    setTimeout(() => activatePremium(true), 900);
+
+  } else {
+    // FAILURE
+    const attempts = getAttempts() + 1;
+    localStorage.setItem(LS_ATTEMPTS, attempts);
+
+    for (let i = 1; i <= Math.min(attempts, MAX_ATTEMPTS); i++) {
+      const dot = document.getElementById('dot' + i);
+      if (dot) dot.classList.add('used');
+    }
+
+    inp.value = '';
+    inp.classList.remove('valid');
+    void inp.offsetWidth;
+    inp.classList.add('shake');
+    setTimeout(() => inp.classList.remove('shake'), 450);
+
+    if (attempts >= MAX_ATTEMPTS) {
+      localStorage.setItem(LS_LOCKOUT, Date.now() + LOCKOUT_MS);
+      showLockScreen();
+    } else {
+      const left = MAX_ATTEMPTS - attempts;
+      showGateMsg('✗ Invalid key — ' + left + ' attempt' + (left === 1 ? '' : 's') + ' remaining.', 'error');
+    }
+  }
+}
+
+function showGateMsg(text, type) {
+  const el = document.getElementById('gateMsg');
+  el.textContent = text; el.className = 'gate-msg ' + type;
+}
+
+function showLockScreen() {
+  const until   = getLockout();
+  const diffMin = Math.max(1, Math.ceil((until - Date.now()) / 60000));
+  document.getElementById('gateUnlockForm').innerHTML =
+    '<div class="gate-locked-msg">' +
+      '<span class="lock-icon">🔒</span>' +
+      '<div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--red);margin-bottom:8px;">Too Many Attempts</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">' +
+        'Locked for <strong style="color:var(--accent)">' + diffMin + ' min' + (diffMin === 1 ? '' : 's') + '</strong>.' +
+      '</div>' +
+    '</div>';
+}
+
+/* ================================================================
+   SECTION 9 — PAYPAL.ME FLOW
+================================================================ */
+function openTxPanel(plan) {
+  setTimeout(function () {
+    var panel = document.getElementById('tx-panel-' + plan);
+    if (panel) {
+      panel.classList.add('open');
+      var inp = document.getElementById('txid-' + plan);
+      if (inp) inp.focus();
+    }
+  }, 1000);
+}
+
+function isValidTxId(str) {
+  return /^[A-Z0-9]{17}$/i.test(str.trim());
+}
+
+function redeemTx(plan) {
+  var inp    = document.getElementById('txid-' + plan);
+  var errEl  = document.getElementById('txerr-' + plan);
+  var raw    = inp.value.trim().toUpperCase().replace(/\s/g, '');
+
+  inp.classList.remove('tx-error');
+  errEl.classList.remove('show');
+  errEl.textContent = '';
+
+  if (!raw) {
+    inp.classList.add('tx-error');
+    errEl.textContent = 'Please paste your PayPal Transaction ID first.';
+    errEl.classList.add('show');
+    inp.focus();
+    return;
+  }
+
+  if (!isValidTxId(raw)) {
+    inp.classList.add('tx-error');
+    errEl.textContent = "That doesn't look right — PayPal Transaction IDs are exactly 17 characters (letters and numbers). Check your PayPal confirmation email.";
+    errEl.classList.add('show');
+    void inp.offsetWidth;
+    inp.focus();
+    return;
+  }
+
+  var key = generateLicenseKey(raw);
+  onPaymentSuccess(key, plan, raw);
+}
+
+function mountPayPalButtons() {
+  ['lifetime', 'monthly'].forEach(function (plan) {
+    var inp = document.getElementById('txid-' + plan);
+    if (!inp) return;
+    inp.addEventListener('input', function () {
+      var pos = this.selectionStart;
+      this.value = this.value.toUpperCase().replace(/\s/g, '');
+      try { this.setSelectionRange(pos, pos); } catch(e) {}
+    });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') redeemTx(plan);
+    });
+  });
+}
+
+/* ================================================================
+   SECTION 10 — PAYMENT SUCCESS: KEY DELIVERY
+================================================================ */
+function onPaymentSuccess(key, plan, transactionId) {
+  pendingKey = key;
+
+  storeGeneratedKey(key);
+
+  document.getElementById('upgradeWall').style.display = 'none';
+  document.getElementById('generatedKeyDisplay').textContent = key;
+
+  const modal = document.getElementById('paymentSuccess');
+  modal.style.display = 'flex';
+  modal.classList.remove('hidden');
+}
+
+function copyKey() {
+  const key = document.getElementById('generatedKeyDisplay').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    const btn = document.querySelector('.key-copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  }).catch(() => {
+    const el = document.getElementById('generatedKeyDisplay');
+    const range = document.createRange();
+    range.selectNode(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+}
+
+function activateGeneratedKey() {
+  if (!pendingKey) return;
+  localStorage.setItem(LS_LICENSE, fnv32(pendingKey.toUpperCase()));
+  activatePremium(true);
+  document.getElementById('paymentSuccess').classList.add('hidden');
+  document.getElementById('paymentSuccess').addEventListener('animationend', function() {
+    this.style.display = 'none';
+  }, { once: true });
+}
+
+/* ================================================================
+   SECTION 11 — FBA FEE ENGINE
+================================================================ */
+const FBA_TIERS = [
+  { name:'Small Standard', desc:'≤ 15×12×0.75 in, ≤ 16 oz',
+    maxL:15, maxM:12, maxS:0.75, maxWoz:16,
+    fees:[{maxWoz:4,fee:3.06},{maxWoz:8,fee:3.15},{maxWoz:12,fee:3.24},{maxWoz:16,fee:3.33}],
+    storage:0.78, storagePeak:2.40 },
+  { name:'Large Standard', desc:'≤ 18×14×8 in, ≤ 20 lbs',
+    maxL:18, maxM:14, maxS:8, maxWlb:20,
+    fees:[{maxWlb:1,fee:3.77},{maxWlb:2,fee:4.08},{maxWlb:3,fee:4.27},{maxWlb:4,fee:4.45},
+          {maxWlb:5,fee:5.17},{maxWlb:10,fee:6.08},{maxWlb:20,fee:7.17}],
+    storage:0.78, storagePeak:2.40 },
+  { name:'Small Oversize', desc:'≤ 60×15×15 in, ≤ 70 lbs',
+    maxL:60, maxM:15, maxS:15, maxWlb:70,
+    fees:[{maxWlb:1,fee:9.61},{maxWlb:2,fee:10.29},{maxWlb:5,fee:11.37},{maxWlb:10,fee:12.38},
+          {maxWlb:20,fee:13.40},{maxWlb:40,fee:16.76},{maxWlb:70,fee:18.77}],
+    storage:0.56, storagePeak:1.40 },
+  { name:'Medium Oversize', desc:'≤ 108 in longest, ≤ 150 lbs',
+    maxL:108, maxM:999, maxS:999, maxWlb:150,
+    fees:[{maxWlb:50,fee:20.43},{maxWlb:100,fee:25.00},{maxWlb:150,fee:31.52}],
+    storage:0.56, storagePeak:1.40 },
+  { name:'Large Oversize', desc:'> 108 in or > 150 lbs',
+    maxL:Infinity, maxM:Infinity, maxS:Infinity, maxWlb:Infinity,
+    fees:[{maxWlb:Infinity,fee:76.57}],
+    storage:0.56, storagePeak:1.40 }
+];
+const RETURN_FEE = 4.00;
+
+function getSizeTier(w, l, m, s) {
+  const oz = w * 16;
+  const [dL, dM, dS] = [l, m, s].sort((a,b)=>b-a);
+  if (dL<=15 && dM<=12 && dS<=0.75 && oz<=16) return FBA_TIERS[0];
+  if (dL<=18 && dM<=14 && dS<=8    && w<=20)  return FBA_TIERS[1];
+  if (dL<=60 && dM<=15 && dS<=15   && w<=70)  return FBA_TIERS[2];
+  if (dL<=108 && w<=150)                       return FBA_TIERS[3];
+  return FBA_TIERS[4];
+}
+
+function getFBAFee(tier, w) {
+  const oz = w * 16;
+  for (const t of tier.fees) {
+    const match = t.maxWoz !== undefined ? oz <= t.maxWoz : w <= t.maxWlb;
+    if (match) return t.fee;
+  }
+  return tier.fees[tier.fees.length-1].fee;
+}
+
+function getStorageFee(tier, l, m, s, monthlyUnits, duration, isPeak) {
+  const cuFt = (l * m * s) / 1728;
+  return cuFt * (isPeak ? tier.storagePeak : tier.storage) * duration;
+}
+
+function getReturnsImpact(rate, cogs) {
+  return (rate / 100) * (cogs + RETURN_FEE);
+}
+
+function adjustedRevenue(price, vat, tax) {
+  let r = price;
+  if (vat) r = price / 1.20;
+  if (tax) r = price / 1.08;
+  return r;
+}
+
+function calculateFBA(i) {
+  const tier   = getSizeTier(i.weightLbs, i.dimL, i.dimM, i.dimS);
+  const rev    = adjustedRevenue(i.sellingPrice, i.vatEnabled, i.salesTaxEnabled);
+  const ref    = rev * i.referralRate;
+  const fba    = getFBAFee(tier, i.weightLbs);
+  const stor   = getStorageFee(tier, i.dimL, i.dimM, i.dimS, i.monthlyUnits, i.storageDuration, i.isPeak);
+  const ret    = getReturnsImpact(i.returnRate, i.cogs);
+  const vatDed = i.sellingPrice - rev;
+
+  const costs  = i.cogs + ref + fba + stor + i.inboundShipping + i.prepCost + i.ppcPerUnit + ret + vatDed + i.miscCost;
+  const preT   = rev - costs;
+  const taxDed = preT > 0 ? preT * (i.incomeTaxRate / 100) : 0;
+  const net    = preT - taxDed;
+  const margin = i.sellingPrice > 0 ? (net / i.sellingPrice) * 100 : 0;
+  const roi    = i.cogs > 0 ? (net / i.cogs) * 100 : 0;
+
+  const fixed  = i.cogs + fba + stor + i.inboundShipping + i.prepCost + i.ppcPerUnit + i.miscCost + (i.returnRate/100 * RETURN_FEE);
+  const effRate = 1 - i.referralRate - (i.returnRate / 100);
+  const breakEven = effRate > 0 ? fixed / effRate : 0;
+
+  return { tier, ref, fba, stor, ret, vatDed, taxDed, rev, net, margin, roi, breakEven };
+}
+
+function calculateFBM(i) {
+  const rev    = adjustedRevenue(i.sellingPrice, i.vatEnabled, i.salesTaxEnabled);
+  const ref    = rev * i.referralRate;
+  const fulfil = i.fbmShipping + i.fbmPackaging;
+  const ret    = getReturnsImpact(i.returnRate, i.cogs);
+  const vatDed = i.sellingPrice - rev;
+
+  const costs  = i.cogs + ref + fulfil + i.ppcPerUnit + ret + vatDed + i.miscCost;
+  const preT   = rev - costs;
+  const taxDed = preT > 0 ? preT * (i.incomeTaxRate / 100) : 0;
+  const net    = preT - taxDed;
+  const margin = i.sellingPrice > 0 ? (net / i.sellingPrice) * 100 : 0;
+  const roi    = i.cogs > 0 ? (net / i.cogs) * 100 : 0;
+  return { net, margin, roi, fulfil, ref, ret, taxDed, vatDed };
+}
+
+/* ================================================================
+   SECTION 12 — UI HELPERS & RENDER
+================================================================ */
+const fmt$   = n => (n >= 0 ? '' : '–') + '$' + Math.abs(n).toFixed(2);
+const fmtNeg = n => '–$' + n.toFixed(2);
+const fmtPct = n => n.toFixed(1) + '%';
+
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val;
+  el.classList.add('updating');
+  setTimeout(() => el.classList.remove('updating'), 300);
+}
+
+function setColor(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = el.className.replace(/val-\w+/g, '');
+  el.classList.add(val > 0 ? 'val-positive' : val < 0 ? 'val-negative' : 'val-neutral');
+}
+
+function getInputs() {
+  const cat = document.getElementById('category');
+  let referralRate = parseFloat(cat.value);
+  if (cat.value === 'custom') referralRate = parseFloat(document.getElementById('customRef').value) / 100;
+  return {
+    sellingPrice:    parseFloat(document.getElementById('sellingPrice').value)    || 0,
+    cogs:            parseFloat(document.getElementById('cogs').value)             || 0,
+    referralRate,
+    weightLbs:       parseFloat(document.getElementById('weight').value)           || 0.1,
+    dimL:            parseFloat(document.getElementById('dimL').value)             || 1,
+    dimM:            parseFloat(document.getElementById('dimM').value)             || 1,
+    dimS:            parseFloat(document.getElementById('dimS').value)             || 1,
+    monthlyUnits:    parseInt(document.getElementById('monthlyUnits').value)       || 1,
+    storageDuration: parseFloat(document.getElementById('storageDuration').value)  || 1,
+    isPeak:          document.getElementById('peakStorage').checked,
+    inboundShipping: parseFloat(document.getElementById('inboundShipping').value)  || 0,
+    prepCost:        parseFloat(document.getElementById('prepCost').value)         || 0,
+    ppcPerUnit:      parseFloat(document.getElementById('ppcSlider').value)        || 0,
+    returnRate:      parseFloat(document.getElementById('returnSlider').value)     || 0,
+    vatEnabled:      document.getElementById('vatToggle').checked,
+    salesTaxEnabled: document.getElementById('salesTaxToggle').checked,
+    incomeTaxRate:   parseFloat(document.getElementById('incomeTax').value)        || 0,
+    miscCost:        parseFloat(document.getElementById('miscCost').value)         || 0,
+    fbmShipping:     parseFloat(document.getElementById('fbmShipping').value)      || 0,
+    fbmPackaging:    parseFloat(document.getElementById('fbmPackaging').value)     || 0,
+  };
+}
+
+function render() {
+  const inputs = getInputs();
+  const fba    = calculateFBA(inputs);
+  const fbm    = calculateFBM(inputs);
+  const sp     = inputs.sellingPrice;
+
+  // Results strip
+  setVal('r-fba-profit', fmt$(fba.net));     setColor('r-fba-profit', fba.net);
+  setVal('r-fba-margin', 'Margin: ' + fmtPct(fba.margin));
+  setVal('r-fba-roi',    fmtPct(fba.roi));
+  setVal('r-fba-roi-sub', fba.roi >= 0 ? 'On COGS' : 'Losing money');
+  setVal('r-breakeven',  fmt$(fba.breakEven));
+  setVal('r-breakeven-sub', sp > fba.breakEven ? '✓ Above breakeven' : '✗ Below breakeven');
+  setVal('r-fbm-profit', fmt$(fbm.net));
+  document.getElementById('r-fbm-profit').style.color = fbm.net >= 0 ? 'var(--purple)' : 'var(--red)';
+  setVal('r-fbm-margin', 'Margin: ' + fmtPct(fbm.margin));
+
+  // Size tier
+  document.getElementById('sizeTierBadge').textContent = fba.tier.name;
+  document.getElementById('sizeTierDesc').textContent  = fba.tier.desc;
+
+  // Breakdown
+  setVal('b-revenue',      '$' + fba.rev.toFixed(2));
+  setVal('b-cogs',         fmtNeg(inputs.cogs));
+  setVal('b-referral',     fmtNeg(fba.ref));
+  setVal('b-fba',          fmtNeg(fba.fba));
+  setVal('b-storage',      fmtNeg(fba.stor));
+  setVal('b-inbound',      fmtNeg(inputs.inboundShipping));
+  setVal('b-prep',         fmtNeg(inputs.prepCost));
+  setVal('b-ppc',          fmtNeg(inputs.ppcPerUnit));
+  setVal('b-returns',      fmtNeg(fba.ret));
+  setVal('b-tax',          fmtNeg(fba.taxDed + fba.vatDed));
+  setVal('b-misc',         fmtNeg(inputs.miscCost));
+  setVal('b-fbm-shipping', fmtNeg(fbm.fulfil));
+
+  const fbaEl = document.getElementById('b-fba-total');
+  setVal('b-fba-total', fmt$(fba.net));
+  fbaEl.style.color = fba.net >= 0 ? 'var(--green)' : 'var(--red)';
+  setVal('b-fba-margin-text', 'Margin ' + fmtPct(fba.margin) + ' · ROI ' + fmtPct(fba.roi));
+
+  const fbmEl = document.getElementById('b-fbm-total');
+  setVal('b-fbm-total', fmt$(fbm.net));
+  fbmEl.style.color = fbm.net >= 0 ? 'var(--purple)' : 'var(--red)';
+  setVal('b-fbm-margin-text', 'Margin ' + fmtPct(fbm.margin) + ' · ROI ' + fmtPct(fbm.roi));
+
+  // Comparison
+  setVal('c-fba-profit', fmt$(fba.net));   setColor('c-fba-profit', fba.net);
+  setVal('c-fba-roi', 'ROI: ' + fmtPct(fba.roi) + ' · Margin: ' + fmtPct(fba.margin));
+  setVal('c-fbm-profit', fmt$(fbm.net));
+  document.getElementById('c-fbm-profit').style.color = fbm.net >= 0 ? 'var(--purple)' : 'var(--red)';
+  setVal('c-fbm-roi', 'ROI: ' + fmtPct(fbm.roi) + ' · Margin: ' + fmtPct(fbm.margin));
+
+  document.getElementById('c-fba-winner').innerHTML = '';
+  document.getElementById('c-fbm-winner').innerHTML = '';
+  if (fba.net > fbm.net && fba.net > 0)
+    document.getElementById('c-fba-winner').innerHTML = '<div class="winner-badge">✓ Better Choice</div>';
+  else if (fbm.net > fba.net && fbm.net > 0)
+    document.getElementById('c-fbm-winner').innerHTML = '<div class="winner-badge">✓ Better Choice</div>';
+
+  const diff = Math.abs(fba.net - fbm.net);
+  let msg = '';
+  if (fba.net <= 0 && fbm.net <= 0)
+    msg = '⚠️ Both FBA and FBM are unprofitable at this price. Try raising your selling price or reducing COGS.';
+  else if (fba.net > fbm.net)
+    msg = '🏆 FBA earns <strong>$' + diff.toFixed(2) + ' more per unit</strong>. Prime eligibility and buy box advantages offset the higher fees.';
+  else if (fbm.net > fba.net)
+    msg = '💡 FBM earns <strong>$' + diff.toFixed(2) + ' more per unit</strong>. Best for heavy, slow-moving or oversized products.';
+  else
+    msg = '⚖️ FBA and FBM produce equal profit at these inputs.';
+  document.getElementById('c-recommendation').innerHTML = msg;
+}
+
+/* ================================================================
+   SECTION 13 — EVENT LISTENERS
+================================================================ */
+function attachListeners() {
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', () => { if (isPremium) render(); });
+    el.addEventListener('change', () => { if (isPremium) render(); });
+  });
+
+  document.getElementById('ppcSlider').addEventListener('input', function() {
+    document.getElementById('ppcVal').textContent = '$' + parseFloat(this.value).toFixed(2);
+    if (!isPremium) return;
+    render();
+  });
+  document.getElementById('returnSlider').addEventListener('input', function() {
+    document.getElementById('returnVal').textContent = this.value + '%';
+    if (!isPremium) return;
+    render();
+  });
+  document.getElementById('category').addEventListener('change', function() {
+    document.getElementById('customRefField').style.display = this.value === 'custom' ? 'flex' : 'none';
+  });
+}
+
+/* ================================================================
+   SECTION 14 — INIT
+================================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+  initUsers();
+  attachListeners();
+  mountPayPalButtons();
+  
+  if (!checkExistingSession()) {
+    showAuthGate();
+  } else {
+    initAccessControl();
+  }
+});
+</script>
+</body>
+</html>
