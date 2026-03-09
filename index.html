@@ -1727,6 +1727,7 @@ const LS_LOCKOUT      = 'pl_lockout_until';
 const LS_USER         = 'pl_user';              // current user session
 const LS_USERS        = 'pl_users';             // all registered users
 const LS_ANALYSES     = 'pl_analyses_';         // per user analysis tracking
+const LS_GEN_KEYS     = 'pl_generated_keys';
 const MAX_FREE        = 5;
 const MAX_ATTEMPTS    = 5;
 const LOCKOUT_MS      = 30 * 60 * 1000;
@@ -1740,7 +1741,7 @@ const FOUNDING_KEYS = [
   'NET-82-D46', 'BEP-15-Q71', 'SLR-39-H08', 'MGN-66-V22'
 ];
 
-const KEYGEN_SALT = 'pl_v1_secret_2024_change_me';
+const KEYGEN_SALT = 'pl_v1_secret_2014_simon_lefa';
 
 /* ================================================================
    SECTION 3 — HASH UTILITY (FNV-1a 32-bit)
