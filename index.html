@@ -1794,7 +1794,7 @@ async function fetchProductByASIN() {
   try {
     // Using Rainforest API (free tier available)
     // Sign up at https://www.rainforestapi.com/ for your own key
-    const response = await fetch(`https://api.rainforestapi.com/request?api_key=DEMO&type=product&amazon_domain=amazon.com&asin=${asin}`);
+    const response = await fetch(`https://api.rainforestapi.com/request?api_key=9AF0061FE0BA4053A716E23AF67B6BFD&type=product&amazon_domain=amazon.com&asin=${asin}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch product');
