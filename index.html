@@ -1749,6 +1749,7 @@ const LS_SKU_HISTORY  = 'pl_sku_';              // per user SKU history
 const MAX_FREE        = 5;
 const MAX_ATTEMPTS    = 5;
 const LOCKOUT_MS      = 30 * 60 * 1000;
+const FOUNDING_HASHES = [];  
 
 /* ================================================================
    SECTION 2 — API ENDPOINT (Cloudflare Worker)
@@ -2413,18 +2414,31 @@ function getLockout()    { return parseInt(localStorage.getItem(LS_LOCKOUT)    |
 function isLockedOut()   { return Date.now() < getLockout(); }
 
 /* ================================================================
-   SECTION 9 — ACCESS CONTROL
+   SECTION 9 — ACCESS CONTROL (FIXED)
 ================================================================ */
 async function initAccessControl() {
+  // Check for existing premium license
   const savedHash = localStorage.getItem(LS_LICENSE);
+  
+  // Only grant premium if there's a valid saved hash AND it matches a real key
   if (savedHash) {
+    // Check if this hash exists in our generated keys
     const localKeys = getGeneratedKeyHashes();
-    if (localKeys.includes(savedHash)) {
+    
+    // Also check founding member keys
+    const allValidHashes = [...FOUNDING_HASHES, ...localKeys];
+    
+    if (allValidHashes.includes(savedHash)) {
+      // Valid premium user - activate premium
       activatePremium(false);
       return;
+    } else {
+      // Invalid saved hash - remove it
+      localStorage.removeItem(LS_LICENSE);
     }
   }
 
+  // Not premium, check free tier
   freeCount = getFreeCount();
 
   if (freeCount < MAX_FREE) {
