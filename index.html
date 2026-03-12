@@ -2030,6 +2030,8 @@ function detectCategory(categoryName) {
    SECTION 5 — LICENSE KEY MANAGEMENT (Calls Cloudflare)
 ================================================================ */
 let pendingKey = '';
+let isPremium = false; // Make sure this is declared
+let freeCount = 0; // Make sure this is declared
 
 async function generateLicenseKey(paypalId) {
   try {
@@ -2080,15 +2082,6 @@ async function isValidKey(inputKey) {
       return false;
     }
     
-    if (result.valid) {
-      const hash = fnv32(inputKey.toUpperCase().trim());
-      const stored = getGeneratedKeyHashes();
-      if (!stored.includes(hash)) {
-        stored.push(hash);
-        localStorage.setItem(LS_GEN_KEYS, JSON.stringify(stored));
-      }
-    }
-    
     return result.valid;
   } catch (error) {
     console.error('Key validation failed:', error);
@@ -2104,12 +2097,19 @@ function getGeneratedKeyHashes() {
   }
 }
 
+function storeGeneratedKey(key) {
+  const hashes = getGeneratedKeyHashes();
+  const h = fnv32(key.toUpperCase());
+  if (!hashes.includes(h)) {
+    hashes.push(h);
+    localStorage.setItem(LS_GEN_KEYS, JSON.stringify(hashes));
+  }
+}
+
 /* ================================================================
    SECTION 6 — USER AUTHENTICATION & TRACKING
 ================================================================ */
 let currentUser = null;
-let isPremium = false;
-let freeCount = 0;
 
 function initUsers() {
   if (!localStorage.getItem(LS_USERS)) {
@@ -2228,7 +2228,27 @@ function handleLogin() {
   document.getElementById('authGate').style.display = 'none';
   
   updateHeaderForUser();
-  loadSKUHistory(); // Load saved SKUs
+  loadSKUHistory();
+  
+  // Check premium status from server
+  checkPremiumStatus();
+}
+
+async function checkPremiumStatus() {
+  const savedHash = localStorage.getItem(LS_LICENSE);
+  
+  if (savedHash) {
+    // We need to get the actual key - but we only have hash
+    // For now, check if it exists in our stored generated keys
+    const localKeys = getGeneratedKeyHashes();
+    if (localKeys.includes(savedHash)) {
+      isPremium = true;
+      activatePremium(false);
+      return;
+    }
+  }
+  
+  // Not premium, init free tier
   initAccessControl();
 }
 
@@ -2280,6 +2300,9 @@ function checkExistingSession() {
       freeCount = users[savedUser].analysesUsed || 0;
       document.getElementById('authGate').style.display = 'none';
       updateHeaderForUser();
+      
+      // Check premium status
+      setTimeout(checkPremiumStatus, 100);
       return true;
     } else {
       localStorage.removeItem(LS_USER);
@@ -2323,7 +2346,6 @@ function saveSKU(sku) {
   const skuKey = LS_SKU_HISTORY + currentUser;
   let savedSKUs = JSON.parse(localStorage.getItem(skuKey) || '[]');
   
-  // Add SKU if not already saved (limit to last 50)
   if (!savedSKUs.includes(sku)) {
     savedSKUs.unshift(sku);
     if (savedSKUs.length > 50) savedSKUs.pop();
@@ -2341,7 +2363,6 @@ function loadSKUHistory() {
   const skus = getSavedSKUs();
   if (skus.length === 0) return;
   
-  // Create or update datalist for autocomplete
   let skuHistory = document.getElementById('sku-history');
   if (!skuHistory) {
     skuHistory = document.createElement('datalist');
@@ -2356,7 +2377,6 @@ function loadSKUHistory() {
     skuHistory.appendChild(option);
   });
   
-  // Set the SKU field to use the datalist
   document.getElementById('sku').setAttribute('list', 'sku-history');
 }
 
@@ -2414,31 +2434,10 @@ function getLockout()    { return parseInt(localStorage.getItem(LS_LOCKOUT)    |
 function isLockedOut()   { return Date.now() < getLockout(); }
 
 /* ================================================================
-   SECTION 9 — ACCESS CONTROL (FIXED)
+   SECTION 9 — ACCESS CONTROL
 ================================================================ */
-async function initAccessControl() {
-  // Check for existing premium license
-  const savedHash = localStorage.getItem(LS_LICENSE);
-  
-  // Only grant premium if there's a valid saved hash AND it matches a real key
-  if (savedHash) {
-    // Check if this hash exists in our generated keys
-    const localKeys = getGeneratedKeyHashes();
-    
-    // Also check founding member keys
-    const allValidHashes = [...FOUNDING_HASHES, ...localKeys];
-    
-    if (allValidHashes.includes(savedHash)) {
-      // Valid premium user - activate premium
-      activatePremium(false);
-      return;
-    } else {
-      // Invalid saved hash - remove it
-      localStorage.removeItem(LS_LICENSE);
-    }
-  }
-
-  // Not premium, check free tier
+function initAccessControl() {
+  // This is called for non-premium users
   freeCount = getFreeCount();
 
   if (freeCount < MAX_FREE) {
@@ -2450,6 +2449,15 @@ async function initAccessControl() {
 
 function activatePremium(animate) {
   isPremium = true;
+
+  // Update user status in "database"
+  if (currentUser) {
+    const users = getUsers();
+    if (users[currentUser]) {
+      users[currentUser].premium = true;
+      saveUsers(users);
+    }
+  }
 
   ['authGate', 'licenseGate', 'upgradeWall', 'paymentSuccess', 'freeTrialBanner'].forEach(id => {
     const el = document.getElementById(id);
@@ -2497,7 +2505,7 @@ function activateFreeTier() {
 
   render();
 }
-
+   
 /* ================================================================
    SECTION 10 — FREE TIER: ANALYZE BUTTON
 ================================================================ */
