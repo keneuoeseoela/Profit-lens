@@ -1423,7 +1423,7 @@ input[type="range"]::-moz-range-thumb {
           <div class="panel-title"><span class="icon">🏷️</span> Product Details</div>
         </div>
         <div class="panel-body">
-          <!-- ASIN / URL Lookup Field - NEW -->
+          <!-- ASIN / URL Lookup Field -->
           <div class="field-group" style="margin-bottom: 10px;">
             <div class="field full">
               <label>Amazon Product URL or ASIN <i class="info-icon" data-tip="Paste Amazon product URL or ASIN (e.g. B08N5WRWNW) to auto-fill details">?</i></label>
@@ -1436,6 +1436,16 @@ input[type="range"]::-moz-range-thumb {
                 </button>
               </div>
               <div id="asinStatus" style="font-size: 11px; margin-top: 5px; min-height: 16px;"></div>
+            </div>
+          </div>
+
+          <!-- SKU Field - NEW -->
+          <div class="field-group" style="margin-bottom: 10px;">
+            <div class="field full">
+              <label>SKU (Stock Keeping Unit) <i class="info-icon" data-tip="Your internal SKU for inventory tracking. Saved automatically.">?</i></label>
+              <div class="input-wrap">
+                <input type="text" id="sku" placeholder="e.g. ECHO-DOT-2024 or PROD-001" list="sku-history" />
+              </div>
             </div>
           </div>
 
@@ -1735,6 +1745,7 @@ const LS_USER         = 'pl_user';              // current user session
 const LS_USERS        = 'pl_users';             // all registered users
 const LS_ANALYSES     = 'pl_analyses_';         // per user analysis tracking
 const LS_GEN_KEYS     = 'pl_generated_keys';    // stored generated keys
+const LS_SKU_HISTORY  = 'pl_sku_';              // per user SKU history
 const MAX_FREE        = 5;
 const MAX_ATTEMPTS    = 5;
 const LOCKOUT_MS      = 30 * 60 * 1000;
@@ -1792,7 +1803,7 @@ async function fetchProductByASIN() {
   statusEl.style.color = 'var(--accent)';
 
   try {
-    // Call your Cloudflare Worker
+    // Call Cloudflare Worker
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -1882,6 +1893,14 @@ function fillProductDetails(product) {
     }
   }
   
+  // Auto-generate SKU if empty
+  const skuField = document.getElementById('sku');
+  if (!skuField.value.trim() && product.title) {
+    const words = product.title.split(' ').slice(0, 3);
+    const sku = words.join('-').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    skuField.value = sku + '-' + Date.now().toString().slice(-4);
+  }
+  
   if (isPremium) {
     render();
   }
@@ -1896,7 +1915,8 @@ function fillSampleProductData(asin) {
       width: 3.9,
       height: 1.7,
       weight: 0.75,
-      category: 'Electronics'
+      category: 'Electronics',
+      title: 'Echo Dot'
     },
     'B07PW9VBK5': { // Kindle
       price: 89.99,
@@ -1904,7 +1924,8 @@ function fillSampleProductData(asin) {
       width: 4.5,
       height: 0.3,
       weight: 0.55,
-      category: 'Electronics'
+      category: 'Electronics',
+      title: 'Kindle'
     },
     'B08GC6PL9D': { // Fire TV Stick
       price: 39.99,
@@ -1912,7 +1933,8 @@ function fillSampleProductData(asin) {
       width: 1.2,
       height: 0.5,
       weight: 0.1,
-      category: 'Electronics'
+      category: 'Electronics',
+      title: 'Fire TV Stick'
     }
   };
 
@@ -1922,7 +1944,8 @@ function fillSampleProductData(asin) {
     width: 7,
     height: 1,
     weight: 0.8,
-    category: 'General'
+    category: 'General',
+    title: 'Product'
   };
 
   document.getElementById('sellingPrice').value = sample.price;
@@ -1930,6 +1953,12 @@ function fillSampleProductData(asin) {
   document.getElementById('dimM').value = sample.width;
   document.getElementById('dimS').value = sample.height;
   document.getElementById('weight').value = sample.weight;
+  
+  // Auto-generate SKU
+  const skuField = document.getElementById('sku');
+  if (!skuField.value.trim()) {
+    skuField.value = sample.title.toUpperCase().replace(/\s+/g, '-') + '-' + Date.now().toString().slice(-4);
+  }
   
   if (sample.category === 'Electronics') {
     document.getElementById('category').value = '0.15';
@@ -2198,6 +2227,7 @@ function handleLogin() {
   document.getElementById('authGate').style.display = 'none';
   
   updateHeaderForUser();
+  loadSKUHistory(); // Load saved SKUs
   initAccessControl();
 }
 
@@ -2284,7 +2314,53 @@ function showAuthGate() {
 }
 
 /* ================================================================
-   SECTION 7 — FREE COUNT TRACKING
+   SECTION 7 — SKU TRACKING
+================================================================ */
+function saveSKU(sku) {
+  if (!currentUser || !sku) return;
+  
+  const skuKey = LS_SKU_HISTORY + currentUser;
+  let savedSKUs = JSON.parse(localStorage.getItem(skuKey) || '[]');
+  
+  // Add SKU if not already saved (limit to last 50)
+  if (!savedSKUs.includes(sku)) {
+    savedSKUs.unshift(sku);
+    if (savedSKUs.length > 50) savedSKUs.pop();
+    localStorage.setItem(skuKey, JSON.stringify(savedSKUs));
+  }
+}
+
+function getSavedSKUs() {
+  if (!currentUser) return [];
+  const skuKey = LS_SKU_HISTORY + currentUser;
+  return JSON.parse(localStorage.getItem(skuKey) || '[]');
+}
+
+function loadSKUHistory() {
+  const skus = getSavedSKUs();
+  if (skus.length === 0) return;
+  
+  // Create or update datalist for autocomplete
+  let skuHistory = document.getElementById('sku-history');
+  if (!skuHistory) {
+    skuHistory = document.createElement('datalist');
+    skuHistory.id = 'sku-history';
+    document.body.appendChild(skuHistory);
+  }
+  
+  skuHistory.innerHTML = '';
+  skus.forEach(sku => {
+    const option = document.createElement('option');
+    option.value = sku;
+    skuHistory.appendChild(option);
+  });
+  
+  // Set the SKU field to use the datalist
+  document.getElementById('sku').setAttribute('list', 'sku-history');
+}
+
+/* ================================================================
+   SECTION 8 — FREE COUNT TRACKING
 ================================================================ */
 function getFreeCount() {
   if (!currentUser) return 0;
@@ -2337,7 +2413,7 @@ function getLockout()    { return parseInt(localStorage.getItem(LS_LOCKOUT)    |
 function isLockedOut()   { return Date.now() < getLockout(); }
 
 /* ================================================================
-   SECTION 8 — ACCESS CONTROL
+   SECTION 9 — ACCESS CONTROL
 ================================================================ */
 async function initAccessControl() {
   const savedHash = localStorage.getItem(LS_LICENSE);
@@ -2409,7 +2485,7 @@ function activateFreeTier() {
 }
 
 /* ================================================================
-   SECTION 9 — FREE TIER: ANALYZE BUTTON
+   SECTION 10 — FREE TIER: ANALYZE BUTTON
 ================================================================ */
 function runFreeAnalysis() {
   if (!currentUser) {
@@ -2422,6 +2498,12 @@ function runFreeAnalysis() {
   if (freeCount >= MAX_FREE) {
     showUpgradeWall();
     return;
+  }
+
+  // Save SKU for this user
+  const sku = document.getElementById('sku').value.trim();
+  if (sku) {
+    saveSKU(sku);
   }
 
   incrementFreeCount();
@@ -2456,7 +2538,7 @@ function resumeFreeTrial() {
 }
 
 /* ================================================================
-   SECTION 10 — OVERLAY CONTROLS
+   SECTION 11 — OVERLAY CONTROLS
 ================================================================ */
 function showUpgradeWall() {
   const wall = document.getElementById('upgradeWall');
@@ -2492,7 +2574,7 @@ function showLicenseGateFromUpgrade() {
 }
 
 /* ================================================================
-   SECTION 11 — LICENSE KEY GATE LOGIC
+   SECTION 12 — LICENSE KEY GATE LOGIC
 ================================================================ */
 async function verifyKey() {
   if (isLockedOut()) { showLockScreen(); return; }
@@ -2576,7 +2658,7 @@ function showLockScreen() {
 }
 
 /* ================================================================
-   SECTION 12 — PAYPAL.ME FLOW
+   SECTION 13 — PAYPAL.ME FLOW
 ================================================================ */
 function openTxPanel(plan) {
   setTimeout(function () {
@@ -2653,7 +2735,7 @@ function mountPayPalButtons() {
 }
 
 /* ================================================================
-   SECTION 13 — PAYMENT SUCCESS: KEY DELIVERY
+   SECTION 14 — PAYMENT SUCCESS: KEY DELIVERY
 ================================================================ */
 function onPaymentSuccess(key, plan, transactionId) {
   pendingKey = key;
@@ -2704,7 +2786,7 @@ function activateGeneratedKey() {
 }
 
 /* ================================================================
-   SECTION 14 — FBA FEE ENGINE
+   SECTION 15 — FBA FEE ENGINE
 ================================================================ */
 const FBA_TIERS = [
   { name:'Small Standard', desc:'≤ 15×12×0.75 in, ≤ 16 oz',
@@ -2807,7 +2889,7 @@ function calculateFBM(i) {
 }
 
 /* ================================================================
-   SECTION 15 — UI HELPERS & RENDER
+   SECTION 16 — UI HELPERS & RENDER
 ================================================================ */
 const fmt$   = n => (n >= 0 ? '' : '–') + '$' + Math.abs(n).toFixed(2);
 const fmtNeg = n => '–$' + n.toFixed(2);
@@ -2833,6 +2915,7 @@ function getInputs() {
   let referralRate = parseFloat(cat.value);
   if (cat.value === 'custom') referralRate = parseFloat(document.getElementById('customRef').value) / 100;
   return {
+    sku: document.getElementById('sku').value.trim(),
     sellingPrice:    parseFloat(document.getElementById('sellingPrice').value)    || 0,
     cogs:            parseFloat(document.getElementById('cogs').value)             || 0,
     referralRate,
@@ -2925,7 +3008,7 @@ function render() {
 }
 
 /* ================================================================
-   SECTION 16 — EVENT LISTENERS
+   SECTION 17 — EVENT LISTENERS
 ================================================================ */
 function attachListeners() {
   document.querySelectorAll('input, select').forEach(el => {
@@ -2949,7 +3032,7 @@ function attachListeners() {
 }
 
 /* ================================================================
-   SECTION 17 — INIT
+   SECTION 18 — INIT
 ================================================================ */
 document.addEventListener('DOMContentLoaded', function() {
   initUsers();
