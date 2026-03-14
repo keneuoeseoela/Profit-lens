@@ -2176,11 +2176,20 @@ async function handleSignup() {
   // Show loading state
   const signupBtn = document.querySelector('#signupForm .btn-accent');
   const originalText = signupBtn.textContent;
-  signupBtn.textContent = '⏳ Verifying email...';
+  signupBtn.textContent = '⏳ Checking email...';
   signupBtn.disabled = true;
 
   try {
-    // Step 1: Verify email with AbstractAPI via your worker
+    // Step 1: Check if email already registered
+    const users = getUsers();
+    if (users[email]) {
+      errorEl.textContent = 'Email already registered. Please login.';
+      signupBtn.textContent = originalText;
+      signupBtn.disabled = false;
+      return;
+    }
+
+    // Step 2: Verify email exists (not disposable)
     const verifyResponse = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -2202,7 +2211,7 @@ async function handleSignup() {
       return;
     }
 
-    // Step 2: Check if email is disposable (extra check)
+    // Step 3: Check if email is disposable
     if (verifyResult.is_disposable) {
       errorEl.textContent = '❌ Temporary/disposable emails are not allowed. Please use a permanent email address.';
       signupBtn.textContent = originalText;
@@ -2210,39 +2219,42 @@ async function handleSignup() {
       return;
     }
 
-    // Step 3: Check if email already registered
-    const users = getUsers();
-    if (users[email]) {
-      errorEl.textContent = 'Email already registered. Please login.';
+    // Step 4: Store user data temporarily (unverified)
+    const unverifiedUsers = JSON.parse(localStorage.getItem('pl_unverified') || '{}');
+    unverifiedUsers[email] = {
+      password: hashPassword(password),
+      createdAt: Date.now(),
+      premium: false,
+      analysesUsed: 0,
+      lastAnalysisDate: null
+    };
+    localStorage.setItem('pl_unverified', JSON.stringify(unverifiedUsers));
+
+    // Step 5: Send verification email
+    signupBtn.textContent = '⏳ Sending verification email...';
+    
+    const sendVerificationResponse = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'sendVerification',
+        data: { email }
+      })
+    });
+
+    const sendVerificationResult = await sendVerificationResponse.json();
+
+    if (!sendVerificationResult.success) {
+      errorEl.textContent = '❌ Failed to send verification email. Please try again.';
       signupBtn.textContent = originalText;
       signupBtn.disabled = false;
       return;
     }
 
-    // Step 4: Create account
-    users[email] = {
-      password: hashPassword(password),
-      createdAt: Date.now(),
-      premium: false,
-      analysesUsed: 0,
-      lastAnalysisDate: null,
-      emailVerified: true, // Mark as verified
-      verificationDate: new Date().toISOString()
-    };
-
-    saveUsers(users);
-
-    successEl.textContent = '✅ Account created! You can now login.';
-    
-    // Clear form
-    document.getElementById('signupEmail').value = '';
-    document.getElementById('signupPassword').value = '';
-    document.getElementById('signupConfirm').value = '';
-
-    // Switch to login after 2 seconds
-    setTimeout(() => {
-      switchAuthTab('login');
-    }, 2000);
+    // Step 6: Show verification UI
+    showVerificationUI(email);
 
   } catch (error) {
     console.error('Signup error:', error);
@@ -2253,7 +2265,179 @@ async function handleSignup() {
   }
 }
 
-function handleLogin() {
+// 🔴 NEW: Show verification code input UI
+function showVerificationUI(email) {
+  // Hide signup form
+  document.getElementById('signupForm').style.display = 'none';
+  
+  // Check if verification form already exists
+  let verifyForm = document.getElementById('verifyForm');
+  if (!verifyForm) {
+    verifyForm = document.createElement('div');
+    verifyForm.id = 'verifyForm';
+    verifyForm.className = 'auth-form';
+    verifyForm.innerHTML = `
+      <h2 class="gate-heading">Verify Your Email</h2>
+      <p class="gate-sub">We sent a verification code to <strong id="verifyEmailDisplay"></strong></p>
+      <p class="gate-sub" style="font-size: 12px; color: var(--text-muted);">Please check your inbox and spam folder.</p>
+      
+      <div class="auth-field">
+        <label>Enter 6-Digit Verification Code</label>
+        <input type="text" id="verifyCode" class="auth-input" placeholder="e.g. 123456" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" />
+      </div>
+      
+      <div class="auth-error" id="verifyError"></div>
+      <div class="auth-success" id="verifySuccess"></div>
+      
+      <button class="btn btn-accent" onclick="verifyCode('${email}')">
+        ✓ Verify Email
+      </button>
+      
+      <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+        <button class="gate-link" onclick="resendVerification('${email}')">
+          Resend Code
+        </button>
+        <button class="gate-link" onclick="backToSignup()">
+          ← Back
+        </button>
+      </div>
+      
+      <div class="gate-divider"></div>
+      <div class="gate-footer">
+        Didn't receive the email? Check your spam folder or 
+        <button class="gate-link" onclick="resendVerification('${email}')">click here to resend</button>.
+      </div>
+    `;
+    document.querySelector('#signupForm').parentNode.appendChild(verifyForm);
+  }
+  
+  document.getElementById('verifyEmailDisplay').textContent = email;
+  verifyForm.style.display = 'block';
+}
+
+// 🔴 NEW: Verify the code entered by user
+async function verifyCode(email) {
+  const code = document.getElementById('verifyCode').value.trim();
+  const errorEl = document.getElementById('verifyError');
+  const successEl = document.getElementById('verifySuccess');
+  
+  errorEl.textContent = '';
+  successEl.textContent = '';
+  
+  if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+    errorEl.textContent = 'Please enter a valid 6-digit code';
+    return;
+  }
+  
+  // Show loading
+  const verifyBtn = document.querySelector('#verifyForm .btn-accent');
+  const originalText = verifyBtn.textContent;
+  verifyBtn.textContent = '⏳ Verifying...';
+  verifyBtn.disabled = true;
+  
+  try {
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'verifyCode',
+        data: { email, code }
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success && result.valid) {
+      // Move from unverified to verified users
+      const unverified = JSON.parse(localStorage.getItem('pl_unverified') || '{}');
+      const userData = unverified[email];
+      
+      if (userData) {
+        const users = getUsers();
+        users[email] = {
+          ...userData,
+          emailVerified: true,
+          verificationDate: new Date().toISOString()
+        };
+        saveUsers(users);
+        delete unverified[email];
+        localStorage.setItem('pl_unverified', JSON.stringify(unverified));
+        
+        successEl.textContent = '✅ Email verified! You can now login.';
+        
+        // Redirect to login after 2 seconds
+        setTimeout(() => {
+          document.getElementById('verifyForm').style.display = 'none';
+          document.getElementById('signupForm').style.display = 'block';
+          switchAuthTab('login');
+        }, 2000);
+      } else {
+        errorEl.textContent = '❌ User data not found. Please sign up again.';
+      }
+    } else {
+      errorEl.textContent = result.reason || '❌ Invalid verification code';
+    }
+  } catch (error) {
+    console.error('Verification error:', error);
+    errorEl.textContent = '❌ An error occurred. Please try again.';
+  } finally {
+    verifyBtn.textContent = originalText;
+    verifyBtn.disabled = false;
+  }
+}
+
+// 🔴 NEW: Resend verification code
+async function resendVerification(email) {
+  const errorEl = document.getElementById('verifyError');
+  const successEl = document.getElementById('verifySuccess');
+  
+  errorEl.textContent = '';
+  successEl.textContent = '';
+  
+  // Show loading on resend button
+  const resendBtn = event?.target || document.querySelector('#verifyForm .gate-link');
+  const originalText = resendBtn.textContent;
+  resendBtn.textContent = '⏳ Sending...';
+  resendBtn.disabled = true;
+  
+  try {
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'sendVerification',
+        data: { email }
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      successEl.textContent = '✅ New verification code sent! Check your email.';
+    } else {
+      errorEl.textContent = '❌ Failed to send code. Please try again.';
+    }
+  } catch (error) {
+    console.error('Resend error:', error);
+    errorEl.textContent = '❌ An error occurred. Please try again.';
+  } finally {
+    resendBtn.textContent = originalText;
+    resendBtn.disabled = false;
+  }
+}
+
+// 🔴 NEW: Go back to signup form
+function backToSignup() {
+  document.getElementById('verifyForm').style.display = 'none';
+  document.getElementById('signupForm').style.display = 'block';
+  
+  // Clear verification code
+  const codeInput = document.getElementById('verifyCode');
+  if (codeInput) codeInput.value = '';
+}
+
+// 🔴 UPDATED handleLogin - Check if email is verified
+async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
@@ -2270,6 +2454,30 @@ function handleLogin() {
   
   if (!user || user.password !== hashPassword(password)) {
     errorEl.textContent = 'Invalid email or password';
+    return;
+  }
+  
+  // 🔴 NEW: Check if email is verified
+  if (!user.emailVerified) {
+    errorEl.textContent = 'Please verify your email first. Check your inbox for the verification code.';
+    
+    // Offer to resend verification
+    const unverifiedUsers = JSON.parse(localStorage.getItem('pl_unverified') || '{}');
+    if (!unverifiedUsers[email]) {
+      // Recreate unverified record
+      unverifiedUsers[email] = {
+        password: user.password,
+        createdAt: user.createdAt,
+        premium: user.premium,
+        analysesUsed: user.analysesUsed
+      };
+      localStorage.setItem('pl_unverified', JSON.stringify(unverifiedUsers));
+    }
+    
+    // Show verification UI
+    setTimeout(() => {
+      showVerificationUI(email);
+    }, 100);
     return;
   }
   
