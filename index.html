@@ -4232,19 +4232,20 @@ function extractASIN(input) {
   return match ? match[1].toUpperCase() : null;
 }
 
-function setAsinStatus(msg, type) {
-  const el = document.getElementById('asinStatus');
-  if (!el) return;
-  const colors = { loading:'var(--accent)', success:'var(--green)', error:'var(--red)' };
-  const icons  = { loading:'⏳', success:'✓', error:'✗' };
-  el.style.color   = colors[type] || 'var(--text-muted)';
-  el.textContent   = type ? icons[type] + ' ' + msg : '';
+// Detect the Amazon marketplace domain from the URL
+// e.g. amazon.co.uk, amazon.de, amazon.fr, amazon.ca etc.
+function extractAmazonDomain(input) {
+  const match = input.match(/amazon\.(co\.uk|co\.jp|com\.au|com\.br|com\.mx|com\.tr|de|fr|it|es|ca|in|nl|pl|se|sg|ae|sa|com)/i);
+  if (!match) return 'amazon.com';
+  const tld = match[1].toLowerCase();
+  return 'amazon.' + tld;
 }
 
 async function fetchProductByASIN() {
-  const raw  = (document.getElementById('asinInput').value || '').trim();
-  const btn  = document.getElementById('fetchAsinBtn');
-  const asin = extractASIN(raw);
+  const raw    = (document.getElementById('asinInput').value || '').trim();
+  const btn    = document.getElementById('fetchAsinBtn');
+  const asin   = extractASIN(raw);
+  const domain = extractAmazonDomain(raw);
 
   if (!raw) {
     setAsinStatus('Paste an Amazon URL or ASIN first.', 'error');
@@ -4257,18 +4258,17 @@ async function fetchProductByASIN() {
 
   btn.disabled    = true;
   btn.textContent = '⏳ Fetching…';
-  setAsinStatus('Looking up ' + asin + '…', 'loading');
+  setAsinStatus('Looking up ' + asin + ' on ' + domain + '…', 'loading');
 
   try {
     const res    = await fetch(API_ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fetchASIN', data: { asin } })
+      body: JSON.stringify({ action: 'fetchASIN', data: { asin, domain } })
     });
     const result = await res.json();
 
     if (!result.success || !result.product) {
-      // Show the exact error so you know whether it's API key, quota, or ASIN issue
       throw new Error(result.error || 'Product not found. Check the ASIN and try again.');
     }
 
