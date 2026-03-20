@@ -4260,11 +4260,16 @@ async function fetchProductByASIN() {
   btn.textContent = '⏳ Fetching…';
   setAsinStatus('Looking up ' + asin + ' on ' + domain + '…', 'loading');
 
+  // 30-second timeout so the button never gets stuck
+  const controller = new AbortController();
+  const timeout    = setTimeout(() => controller.abort(), 30000);
+
   try {
     const res    = await fetch(API_ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fetchASIN', data: { asin, domain } })
+      body:    JSON.stringify({ action: 'fetchASIN', data: { asin, domain } }),
+      signal:  controller.signal
     });
     const result = await res.json();
 
@@ -4276,8 +4281,13 @@ async function fetchProductByASIN() {
     setAsinStatus('Filled from Amazon — check COGS before analysing.', 'success');
 
   } catch (err) {
-    setAsinStatus(err.message || 'Fetch failed. Check your connection.', 'error');
+    if (err.name === 'AbortError') {
+      setAsinStatus('Request timed out — Rainforest is slow. Try again in a moment.', 'error');
+    } else {
+      setAsinStatus(err.message || 'Fetch failed. Check your connection.', 'error');
+    }
   } finally {
+    clearTimeout(timeout);
     btn.disabled    = false;
     btn.textContent = '🔍 Fetch Details';
   }
