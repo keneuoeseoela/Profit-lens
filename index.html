@@ -1098,6 +1098,23 @@ input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.2);}
             <button class="btn btn-green btn-sm" onclick="saveToPortfolio()">+ Save to Portfolio</button>
           </div>
           <div class="panel-body">
+            <!-- ── ASIN / URL LOOKUP ── -->
+            <div class="field" style="margin-bottom:4px;">
+              <label>Amazon ASIN or Product URL <i class="info-icon" data-tip="Paste an Amazon URL or 10-char ASIN e.g. B08N5WRWNW — auto-fills price, dimensions and category">?</i></label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="asinInput"
+                  placeholder="e.g. B08N5WRWNW  or  amazon.com/dp/B08N5WRWNW"
+                  style="flex:1;font-family:var(--font-body);font-size:13px;" />
+                <button class="btn btn-outline" id="fetchAsinBtn"
+                  onclick="fetchProductByASIN()"
+                  style="width:auto;padding:9px 16px;flex-shrink:0;font-size:12px;white-space:nowrap;">
+                  🔍 Fetch Details
+                </button>
+              </div>
+              <div id="asinStatus" style="font-size:11px;min-height:16px;margin-top:5px;display:flex;align-items:center;gap:6px;"></div>
+            </div>
+            <div class="section-divider" style="margin:4px 0 10px;">or fill in manually</div>
+
             <div class="field-group">
               <div class="field">
                 <label>Product Name</label>
@@ -4201,6 +4218,171 @@ function restoreSession() {
   }
   updateHeaderUser();
   // App chrome is shown by initTier when user is logged in
+}
+
+/* ═══════════════════════════════════════════
+   ASIN LOOKUP
+   User pastes an Amazon URL or ASIN — we call
+   the Worker (Rainforest API) and auto-fill
+   price, dimensions, weight and category.
+═══════════════════════════════════════════ */
+function extractASIN(input) {
+  const match = input.match(/(?:dp|gp\/product|product-reviews)\/([A-Z0-9]{10})/i)
+              || input.match(/^([A-Z0-9]{10})$/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function setAsinStatus(msg, type) {
+  const el = document.getElementById('asinStatus');
+  if (!el) return;
+  const colors = { loading:'var(--accent)', success:'var(--green)', error:'var(--red)' };
+  const icons  = { loading:'⏳', success:'✓', error:'✗' };
+  el.style.color   = colors[type] || 'var(--text-muted)';
+  el.textContent   = type ? icons[type] + ' ' + msg : '';
+}
+
+async function fetchProductByASIN() {
+  const raw  = (document.getElementById('asinInput').value || '').trim();
+  const btn  = document.getElementById('fetchAsinBtn');
+  const asin = extractASIN(raw);
+
+  if (!raw) {
+    setAsinStatus('Paste an Amazon URL or ASIN first.', 'error');
+    return;
+  }
+  if (!asin) {
+    setAsinStatus('Could not find a valid ASIN — must be 10 characters e.g. B08N5WRWNW', 'error');
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = '⏳ Fetching…';
+  setAsinStatus('Looking up ' + asin + '…', 'loading');
+
+  try {
+    const res    = await fetch(API_ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetchASIN', data: { asin } })
+    });
+    const result = await res.json();
+
+    if (!result.success || !result.product) {
+      throw new Error(result.error || 'Product not found. Check the ASIN and try again.');
+    }
+
+    fillProductFromASIN(result.product, asin);
+    setAsinStatus('Filled from Amazon — check COGS before analysing.', 'success');
+
+  } catch (err) {
+    setAsinStatus(err.message || 'Fetch failed. Check your connection.', 'error');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '🔍 Fetch Details';
+  }
+}
+
+function fillProductFromASIN(product, asin) {
+  // Product name
+  if (product.title) {
+    document.getElementById('productName').value = product.title.slice(0, 80);
+  }
+
+  // Selling price — try multiple Rainforest fields
+  const price = product.buybox_winner?.price?.value
+             || product.price?.value
+             || (product.prices?.length ? product.prices[0].value : null);
+  if (price) {
+    document.getElementById('sellingPrice').value = parseFloat(price).toFixed(2);
+  }
+
+  // Dimensions & weight
+  const dims = parseASINDimensions(product);
+  if (dims.weight) document.getElementById('weight').value = dims.weight;
+  if (dims.length) document.getElementById('dimL').value   = dims.length;
+  if (dims.width)  document.getElementById('dimM').value   = dims.width;
+  if (dims.height) document.getElementById('dimS').value   = dims.height;
+
+  // Category / referral rate
+  const rate = detectCategoryRate(product);
+  const sel  = document.getElementById('category');
+  const opt  = Array.from(sel.options).find(o => o.value === rate);
+  if (opt) {
+    sel.value = rate;
+    document.getElementById('customRefField').style.display = 'none';
+  } else {
+    sel.value = 'custom';
+    document.getElementById('customRefField').style.display = 'flex';
+    document.getElementById('customRef').value = (parseFloat(rate) * 100).toFixed(1);
+  }
+
+  // Auto-fill SKU with ASIN if blank
+  const skuEl = document.getElementById('sku');
+  if (!skuEl.value.trim()) skuEl.value = asin;
+
+  render();
+}
+
+function parseASINDimensions(product) {
+  const r = { weight: null, length: null, width: null, height: null };
+
+  // Rainforest returns e.g. "10.5 x 7.2 x 1.3 inches; 1.45 Pounds"
+  const str = product.dimensions || product.item_dimensions || '';
+  if (str) {
+    const lwh = str.match(/([\d.]+)\s*[xX×]\s*([\d.]+)\s*[xX×]\s*([\d.]+)/);
+    if (lwh) {
+      const vals = [parseFloat(lwh[1]), parseFloat(lwh[2]), parseFloat(lwh[3])].sort((a,b) => b-a);
+      r.length = vals[0].toFixed(2);
+      r.width  = vals[1].toFixed(2);
+      r.height = vals[2].toFixed(2);
+    }
+    const wt = str.match(/([\d.]+)\s*(pound|lb|oz|ounce)/i);
+    if (wt) {
+      let w = parseFloat(wt[1]);
+      if (/oz|ounce/i.test(wt[2])) w /= 16;
+      r.weight = w.toFixed(2);
+    }
+  }
+
+  // Fallback weight field
+  if (!r.weight && product.weight) {
+    const wt = String(product.weight).match(/([\d.]+)\s*(pound|lb|oz|ounce)/i);
+    if (wt) {
+      let w = parseFloat(wt[1]);
+      if (/oz|ounce/i.test(wt[2])) w /= 16;
+      r.weight = w.toFixed(2);
+    }
+  }
+
+  return r;
+}
+
+function detectCategoryRate(product) {
+  const map = {
+    book: '0.08', magazine: '0.08', novel: '0.08',
+    computer: '0.06', laptop: '0.06', pc: '0.06',
+    jewelry: '0.17', necklace: '0.17', ring: '0.17', watch: '0.17',
+    baby: '0.12', infant: '0.12', toddler: '0.12',
+    camera: '0.08', photography: '0.08',
+    clothing: '0.17', apparel: '0.17', shirt: '0.17', dress: '0.17', shoe: '0.15',
+    sport: '0.15', outdoor: '0.15', fitness: '0.15', gym: '0.15',
+    toy: '0.15', game: '0.15', puzzle: '0.15',
+    beauty: '0.15', cosmetic: '0.15', skincare: '0.15', makeup: '0.15',
+    health: '0.15', supplement: '0.15', vitamin: '0.15',
+    home: '0.15', kitchen: '0.15', garden: '0.15', furniture: '0.15',
+    pet: '0.15', dog: '0.15', cat: '0.15',
+    grocery: '0.08', food: '0.08', snack: '0.08',
+    electronics: '0.15', headphone: '0.15', speaker: '0.15',
+  };
+
+  const cats  = (product.categories || []).map(c => (c.name || c).toLowerCase()).join(' ');
+  const title = (product.title || '').toLowerCase();
+  const haystack = cats + ' ' + title;
+
+  for (const [kw, rate] of Object.entries(map)) {
+    if (haystack.includes(kw)) return rate;
+  }
+  return '0.15'; // General default
 }
 
 </script>
