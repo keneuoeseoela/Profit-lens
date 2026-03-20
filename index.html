@@ -3354,10 +3354,7 @@ function initTier() {
 /* ═══════════════════════════════════════════
    CLOUDFLARE WORKER ENDPOINT
 ═══════════════════════════════════════════ */
-const API_ENDPOINT       = 'https://profitlens-api.seoelakeneuoe.workers.dev';
-// Rainforest API key — read-only, safe to expose in client (can only read Amazon data)
-// Replace with your actual key from rainforestapi.com dashboard
-const RAINFOREST_API_KEY = 'YOUR_RAINFOREST_API_KEY_HERE';
+const API_ENDPOINT = 'https://profitlens-api.seoelakeneuoe.workers.dev';
 
 /* ═══════════════════════════════════════════
    HASH UTILITY (FNV-1a 32-bit) — for local key storage
@@ -4225,9 +4222,8 @@ function restoreSession() {
 
 /* ═══════════════════════════════════════════
    ASIN LOOKUP
-   User pastes an Amazon URL or ASIN — we call
-   the Worker (Rainforest API) and auto-fill
-   price, dimensions, weight and category.
+   User pastes an Amazon URL or ASIN — calls
+   Rainforest API directly from the browser.
 ═══════════════════════════════════════════ */
 function extractASIN(input) {
   const match = input.match(/(?:dp|gp\/product|product-reviews)\/([A-Z0-9]{10})/i)
@@ -4235,13 +4231,19 @@ function extractASIN(input) {
   return match ? match[1].toUpperCase() : null;
 }
 
-// Detect the Amazon marketplace domain from the URL
-// e.g. amazon.co.uk, amazon.de, amazon.fr, amazon.ca etc.
 function extractAmazonDomain(input) {
   const match = input.match(/amazon\.(co\.uk|co\.jp|com\.au|com\.br|com\.mx|com\.tr|de|fr|it|es|ca|in|nl|pl|se|sg|ae|sa|com)/i);
   if (!match) return 'amazon.com';
-  const tld = match[1].toLowerCase();
-  return 'amazon.' + tld;
+  return 'amazon.' + match[1].toLowerCase();
+}
+
+function setAsinStatus(msg, type) {
+  const el = document.getElementById('asinStatus');
+  if (!el) return;
+  const colors = { loading: 'var(--accent)', success: 'var(--green)', error: 'var(--red)' };
+  const icons  = { loading: '⏳', success: '✓', error: '✗' };
+  el.style.color = colors[type] || 'var(--text-muted)';
+  el.textContent = type ? icons[type] + ' ' + msg : '';
 }
 
 async function fetchProductByASIN() {
@@ -4258,49 +4260,29 @@ async function fetchProductByASIN() {
     setAsinStatus('Could not find a valid ASIN — must be 10 characters e.g. B08N5WRWNW', 'error');
     return;
   }
-  if (!RAINFOREST_API_KEY || RAINFOREST_API_KEY === 'YOUR_RAINFOREST_API_KEY_HERE') {
-    setAsinStatus('Rainforest API key not configured. Add it to the RAINFOREST_API_KEY constant.', 'error');
-    return;
-  }
 
   btn.disabled    = true;
   btn.textContent = '⏳ Fetching…';
   setAsinStatus('Looking up ' + asin + ' on ' + domain + '…', 'loading');
 
-  // Call Rainforest API directly from browser — no Worker middleman
-  // This avoids Cloudflare Worker response size limits and is faster
-  const url = 'https://api.rainforestapi.com/request'
-    + '?api_key=' + encodeURIComponent(RAINFOREST_API_KEY)
-    + '&type=product'
-    + '&amazon_domain=' + encodeURIComponent(domain)
-    + '&asin=' + encodeURIComponent(asin);
-
   const controller = new AbortController();
   const timeout    = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(API_ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ action: 'fetchASIN', data: { asin, domain } }),
+      signal:  controller.signal
+    });
 
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody?.message || 'Rainforest API error ' + res.status);
+    const result = await res.json();
+
+    if (!result.success || !result.product) {
+      throw new Error(result.error || 'Product not found. Check the ASIN and try again.');
     }
 
-    const body = await res.json();
-
-    if (body?.request_info?.success === false) {
-      throw new Error(body.request_info.message || body.message || 'Rainforest request failed');
-    }
-
-    const product = body.product;
-    if (!product) {
-      throw new Error(
-        body.message
-        || 'ASIN ' + asin + ' not found on ' + domain + '. Try pasting the full URL from the correct Amazon marketplace.'
-      );
-    }
-
-    fillProductFromASIN(product, asin);
+    fillProductFromASIN(result.product, asin);
     setAsinStatus('Filled from Amazon — check COGS before analysing.', 'success');
 
   } catch (err) {
