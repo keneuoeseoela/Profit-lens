@@ -4268,6 +4268,7 @@ async function fetchProductByASIN() {
     const result = await res.json();
 
     if (!result.success || !result.product) {
+      // Show the exact error so you know whether it's API key, quota, or ASIN issue
       throw new Error(result.error || 'Product not found. Check the ASIN and try again.');
     }
 
