@@ -948,6 +948,34 @@ input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.2);}
         </div>
       </div>
 
+      <!-- EMAIL VERIFICATION STEP -->
+      <div class="auth-form-panel" id="authVerifyForm">
+        <div style="text-align:center;margin-bottom:16px;">
+          <div style="font-size:28px;margin-bottom:8px;">📧</div>
+          <div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:6px;">Check your email</div>
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+            We sent a 6-digit code to<br/>
+            <strong id="verifyEmailDisplay" style="color:var(--accent);">your email</strong>
+          </div>
+        </div>
+        <div class="auth-field">
+          <label class="auth-field-label">Verification Code</label>
+          <input type="text" class="auth-field-input" id="authVerifyCode"
+            placeholder="• • • • • •" maxlength="6"
+            inputmode="numeric" autocomplete="one-time-code"
+            style="text-align:center;letter-spacing:10px;font-size:22px;font-family:var(--font-mono);font-weight:500;" />
+        </div>
+        <div class="auth-err" id="authVerifyErr"></div>
+        <div class="auth-ok"  id="authVerifyOk"></div>
+        <button class="auth-submit accent" id="authVerifyBtn" onclick="handleVerifyCode()">✓ Verify Email</button>
+        <div class="auth-divider"></div>
+        <div class="auth-panel-footer">
+          Didn't get it? <a onclick="resendVerificationCode()">Resend code</a>
+          &nbsp;·&nbsp;
+          <a onclick="switchAuthTab('signup')">← Change email</a>
+        </div>
+      </div>
+
 
       <!-- RETURNING USER: License key entry -->
       <div class="auth-divider"></div>
@@ -965,8 +993,8 @@ input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.2);}
     <!-- HELP SECTION -->
     <div class="help-section">
       <div class="help-section-title">Need help? Lost access? Email us and we'll sort it out.</div>
-      <a class="help-email-btn" href="mailto:support@profitlens.com?subject=ProfitLens%20Support">
-        ✉ support@profitlens.com
+      <a class="help-email-btn" href="/cdn-cgi/l/email-protection#3a494f4a4a55484e7a4a48555c534e565f54491459555705494f58505f594e076a48555c534e765f54491f080a694f4a4a55484e">
+        ✉ <span class="__cf_email__" data-cfemail="54272124243b26201424263b323d2038313a277a373b39">[email&#160;protected]</span>
       </a>
     </div>
 
@@ -1862,7 +1890,7 @@ input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.2);}
   <strong>ProfitLens Pro</strong> — Real numbers for serious Amazon sellers 🚀 &nbsp;·&nbsp; Calculations are estimates. Amazon fees subject to change.
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ═══════════════════════════════════════════
    FBA FEE ENGINE
 ═══════════════════════════════════════════ */
@@ -3551,6 +3579,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Auth panel inputs — Enter key submits
   document.getElementById('authLoginPw')?.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
   document.getElementById('authSignupConfirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') handleSignup(); });
+  document.getElementById('authVerifyCode')?.addEventListener('keydown', e => { if (e.key === 'Enter') handleVerifyCode(); });
+  // Auto-strip spaces from verify code as user types
+  document.getElementById('authVerifyCode')?.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+  });
 });
 
 /* ═══════════════════════════════════════════
@@ -3656,6 +3689,7 @@ function switchAuthTab(tab) {
   const forms = {
     login:  'authLoginForm',
     signup: 'authSignupForm',
+    verify: 'authVerifyForm',
   };
   Object.values(forms).forEach(id => {
     const el = document.getElementById(id);
@@ -3667,12 +3701,17 @@ function switchAuthTab(tab) {
   const signupTab = document.getElementById('authTabSignup');
   if (loginTab)  loginTab.classList.toggle('active', tab === 'login');
   if (signupTab) signupTab.classList.toggle('active', tab === 'signup');
-  setTimeout(() => { target?.querySelector('input')?.focus(); }, 100);
+  // Don't focus on verify — the input needs to be large/visible first
+  if (tab !== 'verify') {
+    setTimeout(() => { target?.querySelector('input')?.focus(); }, 100);
+  } else {
+    setTimeout(() => { document.getElementById('authVerifyCode')?.focus(); }, 150);
+  }
   clearAuthErrors();
 }
 
 function clearAuthErrors() {
-  ['authLoginErr','authSignupErr','authSignupOk'].forEach(id => {
+  ['authLoginErr','authSignupErr','authSignupOk','authVerifyErr','authVerifyOk'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = '';
   });
@@ -3683,7 +3722,8 @@ function clearAuthErrors() {
 
 function clearAuthForms() {
   ['authLoginEmail','authLoginPw',
-   'authSignupEmail','authSignupPw','authSignupConfirm'].forEach(id => {
+   'authSignupEmail','authSignupPw','authSignupConfirm',
+   'authVerifyCode'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3796,7 +3836,9 @@ async function handleLogin() {
   }
 }
 
-/* ── Signup ── */
+/* ── Signup — Step 1: validate fields + send verification code ── */
+let _pendingSignup = null; // holds { email, passwordHash } until code verified
+
 async function handleSignup() {
   const emailEl   = document.getElementById('authSignupEmail');
   const pwEl      = document.getElementById('authSignupPw');
@@ -3810,6 +3852,7 @@ async function handleSignup() {
 
   clearAuthErrors();
 
+  // ── Validation ──
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     errEl.textContent = 'Please enter a valid email address.';
     emailEl.classList.add('inp-err');
@@ -3826,6 +3869,7 @@ async function handleSignup() {
     return;
   }
 
+  // ── Check not already registered locally ──
   const users = getUsers();
   if (users[email]) {
     errEl.textContent = 'An account with this email already exists. Please login.';
@@ -3835,37 +3879,155 @@ async function handleSignup() {
     return;
   }
 
-  // Disable button during signup
   const btn = document.querySelector('#authSignupForm .auth-submit');
   const origText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '⏳ Creating account…';
+  btn.textContent = '⏳ Sending code…';
 
   try {
-    // Save user locally
+    // ── Send verification code to email ──
+    const res    = await fetch(API_ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sendVerification',
+        data:   { email }
+      })
+    });
+    const result = await res.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send verification email. Please try again.');
+    }
+
+    // ── Store pending signup data ──
+    _pendingSignup = { email, passwordHash: hashPw(pw) };
+
+    // ── Show verification step ──
+    document.getElementById('verifyEmailDisplay').textContent = email;
+    emailEl.classList.add('inp-ok');
+    okEl.textContent = '✓ Code sent — check your inbox!';
+
+    setTimeout(() => switchAuthTab('verify'), 600);
+
+  } catch (err) {
+    errEl.textContent = err.message || 'Could not send verification email. Check your connection.';
+    emailEl.classList.add('inp-err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+/* ── Signup — Step 2: verify the code ── */
+async function handleVerifyCode() {
+  const codeEl = document.getElementById('authVerifyCode');
+  const errEl  = document.getElementById('authVerifyErr');
+  const okEl   = document.getElementById('authVerifyOk');
+  const code   = codeEl.value.trim().replace(/\s/g, '');
+
+  errEl.textContent = '';
+  okEl.textContent  = '';
+  codeEl.classList.remove('inp-err','inp-ok');
+
+  if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+    errEl.textContent = 'Please enter the 6-digit code from your email.';
+    codeEl.classList.add('inp-err');
+    return;
+  }
+
+  if (!_pendingSignup) {
+    errEl.textContent = 'Session expired — please sign up again.';
+    switchAuthTab('signup');
+    return;
+  }
+
+  const btn = document.getElementById('authVerifyBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Verifying…';
+
+  try {
+    const res    = await fetch(API_ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'verifyCode',
+        data:   { email: _pendingSignup.email, code }
+      })
+    });
+    const result = await res.json();
+
+    if (!result.success || !result.valid) {
+      codeEl.classList.add('inp-err');
+      errEl.textContent = result.reason || 'Invalid code. Please check and try again.';
+      return;
+    }
+
+    // ── Code confirmed — create the account ──
+    codeEl.classList.add('inp-ok');
+    okEl.textContent = '✓ Email verified!';
+
+    const { email, passwordHash } = _pendingSignup;
+    _pendingSignup = null;
+
+    // Save locally
+    const users = getUsers();
     users[email] = {
-      passwordHash: hashPw(pw),
-      tier: 'free',
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString()
+      passwordHash,
+      tier:         'free',
+      emailVerified: true,
+      createdAt:    new Date().toISOString(),
+      lastLogin:    new Date().toISOString(),
     };
     saveUsers(users);
     setCurrentUser(email);
     updateHeaderUser();
 
-    // Track signup on server — sends hash for cross-device login
-    trackUserSignup(email, 'free', hashPw(pw));
-
-    emailEl.classList.add('inp-ok');
-    okEl.textContent = '✓ Account created!';
+    // Persist to Worker KV (non-blocking)
+    trackUserSignup(email, 'free', passwordHash);
 
     setTimeout(() => onAuthSuccess(email), 700);
 
   } catch (err) {
-    errEl.textContent = 'Something went wrong. Please try again.';
+    errEl.textContent = 'Could not verify code. Check your connection and try again.';
   } finally {
     btn.disabled = false;
     btn.textContent = origText;
+  }
+}
+
+/* ── Resend verification code ── */
+async function resendVerificationCode() {
+  if (!_pendingSignup) { switchAuthTab('signup'); return; }
+
+  const errEl = document.getElementById('authVerifyErr');
+  const okEl  = document.getElementById('authVerifyOk');
+  errEl.textContent = '';
+  okEl.textContent  = '⏳ Resending…';
+
+  try {
+    const res    = await fetch(API_ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sendVerification',
+        data:   { email: _pendingSignup.email }
+      })
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      okEl.textContent = '✓ New code sent — check your inbox.';
+      document.getElementById('authVerifyCode').value = '';
+      document.getElementById('authVerifyCode').focus();
+    } else {
+      okEl.textContent = '';
+      errEl.textContent = result.error || 'Failed to resend. Please try again.';
+    }
+  } catch {
+    okEl.textContent = '';
+    errEl.textContent = 'Could not resend. Check your connection.';
   }
 }
 
@@ -4022,16 +4184,6 @@ function restoreSession() {
   }
   updateHeaderUser();
   // App chrome is shown by initTier when user is logged in
-}
-
-/* ── Sync tier back to user record when it changes ── */
-function syncTierToUser() {
-  const email = getCurrentUser();
-  if (!email) return;
-  const users = getUsers();
-  if (!users[email]) return;
-  users[email].tier = currentTier;
-  saveUsers(users);
 }
 
 </script>
