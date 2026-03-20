@@ -3836,8 +3836,11 @@ async function handleLogin() {
   }
 }
 
-/* ── Signup — Step 1: validate fields + send verification code ── */
-let _pendingSignup = null; // holds { email, passwordHash } until code verified
+/* ── Signup — Step 1: validate + send code ONLY, never create account here ──
+   Account is ONLY created in handleVerifyCode() after the Worker
+   confirms the 6-digit code. Nothing is saved to localStorage here.
+═══════════════════════════════════════════════════════════════════ */
+let _pendingSignup = null; // { email, passwordHash } — set here, consumed in handleVerifyCode
 
 async function handleSignup() {
   const emailEl   = document.getElementById('authSignupEmail');
@@ -3852,7 +3855,7 @@ async function handleSignup() {
 
   clearAuthErrors();
 
-  // ── Validation ──
+  // ── Client-side validation only — no storage writes ──
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     errEl.textContent = 'Please enter a valid email address.';
     emailEl.classList.add('inp-err');
@@ -3869,9 +3872,9 @@ async function handleSignup() {
     return;
   }
 
-  // ── Check not already registered locally ──
-  const users = getUsers();
-  if (users[email]) {
+  // Reject if already a verified account with this email
+  const existing = getUsers()[email];
+  if (existing && existing.emailVerified) {
     errEl.textContent = 'An account with this email already exists. Please login.';
     emailEl.classList.add('inp-err');
     switchAuthTab('login');
@@ -3885,14 +3888,11 @@ async function handleSignup() {
   btn.textContent = '⏳ Sending code…';
 
   try {
-    // ── Send verification code to email ──
+    // ── Only action: ask Worker to email a verification code ──
     const res    = await fetch(API_ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'sendVerification',
-        data:   { email }
-      })
+      body: JSON.stringify({ action: 'sendVerification', data: { email } })
     });
     const result = await res.json();
 
@@ -3900,15 +3900,15 @@ async function handleSignup() {
       throw new Error(result.error || 'Failed to send verification email. Please try again.');
     }
 
-    // ── Store pending signup data ──
+    // Store email + hash temporarily in memory only — NOT in localStorage
     _pendingSignup = { email, passwordHash: hashPw(pw) };
 
-    // ── Show verification step ──
     document.getElementById('verifyEmailDisplay').textContent = email;
     emailEl.classList.add('inp-ok');
     okEl.textContent = '✓ Code sent — check your inbox!';
 
-    setTimeout(() => switchAuthTab('verify'), 600);
+    // Switch to verify step after brief confirmation display
+    setTimeout(() => switchAuthTab('verify'), 700);
 
   } catch (err) {
     errEl.textContent = err.message || 'Could not send verification email. Check your connection.';
@@ -3917,28 +3917,33 @@ async function handleSignup() {
     btn.disabled = false;
     btn.textContent = origText;
   }
+  // ── NO saveUsers(), NO setCurrentUser(), NO onAuthSuccess() here ──
 }
 
-/* ── Signup — Step 2: verify the code ── */
+/* ── Signup — Step 2: verify code, THEN create account ──
+   This is the ONLY place an account gets written to localStorage.
+   Nothing runs until the Worker returns { valid: true }.
+═══════════════════════════════════════════════════════════ */
 async function handleVerifyCode() {
   const codeEl = document.getElementById('authVerifyCode');
   const errEl  = document.getElementById('authVerifyErr');
   const okEl   = document.getElementById('authVerifyOk');
-  const code   = codeEl.value.trim().replace(/\s/g, '');
+  const code   = codeEl.value.trim().replace(/\D/g, ''); // digits only
 
   errEl.textContent = '';
   okEl.textContent  = '';
   codeEl.classList.remove('inp-err','inp-ok');
 
-  if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+  if (!code || code.length !== 6) {
     errEl.textContent = 'Please enter the 6-digit code from your email.';
     codeEl.classList.add('inp-err');
     return;
   }
 
-  if (!_pendingSignup) {
-    errEl.textContent = 'Session expired — please sign up again.';
-    switchAuthTab('signup');
+  // Guard: pendingSignup must exist (set in handleSignup, never in localStorage)
+  if (!_pendingSignup || !_pendingSignup.email || !_pendingSignup.passwordHash) {
+    errEl.textContent = 'Session expired — please go back and sign up again.';
+    setTimeout(() => switchAuthTab('signup'), 1500);
     return;
   }
 
@@ -3948,6 +3953,7 @@ async function handleVerifyCode() {
   btn.textContent = '⏳ Verifying…';
 
   try {
+    // ── Ask Worker to validate the code ──
     const res    = await fetch(API_ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -3964,33 +3970,44 @@ async function handleVerifyCode() {
       return;
     }
 
-    // ── Code confirmed — create the account ──
+    // ── Worker confirmed code is valid ──
+    // Only NOW do we write to localStorage and create the session
     codeEl.classList.add('inp-ok');
     okEl.textContent = '✓ Email verified!';
 
     const { email, passwordHash } = _pendingSignup;
-    _pendingSignup = null;
+    _pendingSignup = null; // clear so it can't be replayed
 
-    // Save locally
     const users = getUsers();
+    // Final guard: don't overwrite an already-verified account
+    if (users[email] && users[email].emailVerified) {
+      // Already exists — just log them in
+      setCurrentUser(email);
+      updateHeaderUser();
+      setTimeout(() => onAuthSuccess(email), 500);
+      return;
+    }
+
+    // Create the account
     users[email] = {
       passwordHash,
-      tier:         'free',
+      tier:          'free',
       emailVerified: true,
-      createdAt:    new Date().toISOString(),
-      lastLogin:    new Date().toISOString(),
+      createdAt:     new Date().toISOString(),
+      lastLogin:     new Date().toISOString(),
     };
-    saveUsers(users);
-    setCurrentUser(email);
+    saveUsers(users);       // ← first and only localStorage write
+    setCurrentUser(email);  // ← sets session
     updateHeaderUser();
 
-    // Persist to Worker KV (non-blocking)
+    // Persist to Worker KV for cross-device login (non-blocking, never blocks auth)
     trackUserSignup(email, 'free', passwordHash);
 
     setTimeout(() => onAuthSuccess(email), 700);
 
   } catch (err) {
     errEl.textContent = 'Could not verify code. Check your connection and try again.';
+    codeEl.classList.add('inp-err');
   } finally {
     btn.disabled = false;
     btn.textContent = origText;
